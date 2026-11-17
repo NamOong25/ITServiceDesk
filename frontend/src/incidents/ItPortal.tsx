@@ -31,19 +31,22 @@ function Queue({ items, open }: { items: QueueItem[]; open: (id: number) => void
     <p className="incident-intro">Tiếp nhận sự cố và theo dõi hạn phản hồi đầu tiên.</p>
     <div className="it-metrics">
       {[
-        ['OVERDUE', 'Quá hạn phản hồi'],
-        ['DUE_SOON', 'Sắp đến hạn'],
-        ['ON_TIME', 'Đã phản hồi đúng hạn'],
-      ].map(([key, label]) => <div className="incident-card" key={key}>
-        <span>{label}</span><strong>{items.filter((item) => item.sla.state === key).length}</strong>
+        ['OVERDUE', 'Quá hạn phản hồi', 'Chưa có phản hồi đầu tiên', '!', 'overdue'],
+        ['DUE_SOON', 'Sắp đến hạn', 'Trong 30 phút làm việc', '◷', 'waiting'],
+        ['ON_TIME', 'Đã phản hồi đúng hạn', 'Theo phản hồi đầu tiên', '✓', 'success'],
+      ].map(([key, label, hint, icon, tone]) => <div className="incident-card it-metric" key={key}>
+        <span className={'it-metric-icon ' + tone} aria-hidden="true">{icon}</span>
+        <div><span>{label}</span><strong>{items.filter((item) => item.sla.state === key).length}</strong>
+          <small>{hint}</small></div>
       </div>)}
     </div>
     <section className="incident-card it-list">
-      <h2>Danh sách sự cố</h2>
+      <div className="it-list-heading"><div><h2>Danh sách sự cố</h2>
+        <p>{items.length} yêu cầu trong hàng đợi</p></div></div>
       <div className="it-filters">
         <div>
           <label htmlFor="it-search">Tìm mã hoặc tiêu đề</label>
-          <input id="it-search" type="search" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input id="it-search" type="search" placeholder="Tìm theo mã hoặc tiêu đề" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <div>
           <label htmlFor="it-status">Trạng thái</label>
@@ -53,16 +56,15 @@ function Queue({ items, open }: { items: QueueItem[]; open: (id: number) => void
           </select>
         </div>
       </div>
-      {matches.length === 0 ? <p className="incident-intro">{items.length
+      {matches.length === 0 ? <p className="incident-intro it-empty">{items.length
         ? 'Không có sự cố khớp bộ lọc.' : 'Chưa có sự cố nào.'}</p> : <div className="it-table-scroll">
         <table>
-          <thead><tr><th>Yêu cầu</th><th>Nhóm sự cố</th><th>Ảnh hưởng</th><th>Trạng thái</th><th>Người xử lý</th><th>Hạn phản hồi</th></tr></thead>
+          <thead><tr><th>Yêu cầu</th><th>Nhóm sự cố / Ảnh hưởng</th><th>Trạng thái</th><th>Người xử lý</th><th>Hạn / phản hồi đầu tiên</th></tr></thead>
           <tbody>{matches.map((item) => <tr key={item.id}>
             <td><button type="button" className="it-ticket-link" onClick={() => open(item.id)}>
               <span className="incident-code">{ticketCode(item.id)}</span><strong>{item.title}</strong>
             </button><small>{item.requester}</small></td>
-            <td>{categories[item.category]}</td>
-            <td>{impacts[item.impact]}</td>
+            <td>{categories[item.category]}<small>{impacts[item.impact]}</small></td>
             <td><Status status={item.status} /></td>
             <td>{item.assignee ?? 'Chưa phân công'}</td>
             <td><ReplyDeadline sla={item.sla} /></td>
@@ -231,23 +233,16 @@ export function ItPortal({ email }: { email: string }) {
   function refresh() { setAttempt((current) => current + 1); }
 
   return (
-    <div className="employee-portal">
-      <aside className="employee-sidebar">
-        <p>Đội IT</p>
-        <button type="button" onClick={() => open(null)}>Hàng đợi</button>
-        <small>{email}</small>
-      </aside>
-      <section className="employee-main">
-        {id !== null && <button className="incident-back" type="button" onClick={() => open(null)}>← Hàng đợi IT</button>}
-        {id === null && queue !== null && <Queue items={queue} open={open} />}
-        {id !== null && detail?.ticket.id === id && <ItIncident key={id} detail={detail} email={email} refresh={refresh} />}
-        {error && <div className="incident-card incident-load-status">
-          <p className="form-error" role="alert">{error}</p>
-          <button className="secondary" type="button" onClick={refresh}>Thử lại</button>
-        </div>}
-        {!error && (id === null ? queue === null : detail?.ticket.id !== id) &&
-          <p className="incident-intro" role="status">Đang tải sự cố…</p>}
-      </section>
-    </div>
+    <section className="employee-main">
+      {id !== null && <button className="incident-back" type="button" onClick={() => open(null)}>← Hàng đợi IT</button>}
+      {id === null && queue !== null && <Queue items={queue} open={open} />}
+      {id !== null && detail?.ticket.id === id && <ItIncident key={id} detail={detail} email={email} refresh={refresh} />}
+      {error && <div className="incident-card incident-load-status">
+        <p className="form-error" role="alert">{error}</p>
+        <button className="secondary" type="button" onClick={refresh}>Thử lại</button>
+      </div>}
+      {!error && (id === null ? queue === null : detail?.ticket.id !== id) &&
+        <p className="incident-intro" role="status">Đang tải sự cố…</p>}
+    </section>
   );
 }

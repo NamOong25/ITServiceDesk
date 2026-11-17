@@ -204,33 +204,30 @@ export function AccessPortal({ account }: { account: Account }) {
   }
 
   return (
-    <div className="employee-portal">
-      <aside className="employee-sidebar"><p>{title}</p><small>{account.email}</small></aside>
-      <section className="employee-main">
-        {(creating || id !== null) && <a href={accessUrl} className="incident-back access-action">← {title}</a>}
-        {creating && <AccessForm />}
-        {id !== null && request && <AccessDetail request={request} account={account} refresh={refresh} />}
-        {id === null && !creating && <>
-          <div className="incident-heading">
-            <h1>{title}</h1>
-            {account.role === 'EMPLOYEE' && <a className="incident-primary access-action" href={accessUrl + '/new'}>+ Xin cấp quyền</a>}
-          </div>
-          {requests && <section className="incident-card access-list" aria-label={title}>
-            {requests.length === 0 ? <p>Chưa có yêu cầu cấp quyền.</p> : requests.map((item) => (
-              <a className="access-list-item" key={item.id} href={accessUrl + '/' + item.id}>
-                <span className="incident-code">{abbr(item.id)}</span>
-                <span><strong>Xin quyền dùng {item.systemName}</strong><small>{account.role === 'EMPLOYEE'
-                  ? item.requestedPermission : item.requester}</small></span>
-                <Badge status={item.status} />
-                <time dateTime={item.createdAt}>{dateFormat.format(new Date(item.createdAt))}</time>
-              </a>
-            ))}
-          </section>}
-        </>}
-        {error && <p className="form-error" role="alert">{error}</p>}
-        {!creating && !error && (id !== null ? !request : !requests) &&
-          <p className="incident-intro" role="status">Đang tải yêu cầu…</p>}
-      </section>
-    </div>
+    <section className="employee-main">
+      {(creating || id !== null) && <a href={accessUrl} className="incident-back access-action">← {title}</a>}
+      {creating && <AccessForm />}
+      {id !== null && request && <AccessDetail request={request} account={account} refresh={refresh} />}
+      {id === null && !creating && <>
+        <div className="incident-heading">
+          <h1>{title}</h1>
+          {account.role === 'EMPLOYEE' && <a className="incident-primary access-action" href={accessUrl + '/new'}>+ Xin cấp quyền</a>}
+        </div>
+        {requests && <section className="incident-card access-list" aria-label={title}>
+          {requests.length === 0 ? <p>Chưa có yêu cầu cấp quyền.</p> : requests.map((item) => (
+            <a className="access-list-item" key={item.id} href={accessUrl + '/' + item.id}>
+              <span className="incident-code">{abbr(item.id)}</span>
+              <span><strong>Xin quyền dùng {item.systemName}</strong><small>{account.role === 'EMPLOYEE'
+                ? item.requestedPermission : item.requester}</small></span>
+              <Badge status={item.status} />
+              <time dateTime={item.createdAt}>{dateFormat.format(new Date(item.createdAt))}</time>
+            </a>
+          ))}
+        </section>}
+      </>}
+      {error && <p className="form-error" role="alert">{error}</p>}
+      {!creating && !error && (id !== null ? !request : !requests) &&
+        <p className="incident-intro" role="status">Đang tải yêu cầu…</p>}
+    </section>
   );
 }

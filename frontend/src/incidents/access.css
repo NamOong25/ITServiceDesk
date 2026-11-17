@@ -1,22 +1,5 @@
-.workspace-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin-bottom: 14px;
-}
-.workspace-tabs a {
-  border-radius: 8px;
-  padding: 8px 12px;
-  color: #334db9;
-  background: #fff;
-  border: 1px solid #dce3f1;
-  font-size: .88rem;
-  font-weight: 650;
-  text-decoration: none;
-}
-.workspace-tabs a[aria-current="page"] { background: #edf0ff; border-color: #d6defa; }
 .access-action { display: inline-block; text-decoration: none; }
-.access-action:focus-visible, .workspace-tabs a:focus-visible, .access-list a:focus-visible {
+.access-action:focus-visible, .access-list a:focus-visible {
   outline: 2px solid #6076dc;
   outline-offset: 2px;
 }

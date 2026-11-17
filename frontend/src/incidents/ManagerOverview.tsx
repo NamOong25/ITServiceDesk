@@ -96,7 +96,7 @@ function OverdueList({ items }: { items: OverdueIncident[] }) {
   </section>;
 }
 
-export function ManagerOverview({ email }: { email: string }) {
+export function ManagerOverview() {
   const [days, setDays] = useState(7);
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState(false);
@@ -119,39 +119,36 @@ export function ManagerOverview({ email }: { email: string }) {
   }, [days, attempt]);
 
   return (
-    <div className="employee-portal">
-      <aside className="employee-sidebar"><p>Cổng quản lý</p><small>{email}</small></aside>
-      <section className="employee-main manager-overview">
-        <div className="incident-heading manager-heading">
-          <div><h1>Tổng quan nhóm</h1>
-            <p className="incident-intro">Theo dõi sự cố và yêu cầu cấp quyền của nhân viên do bạn quản lý.</p></div>
-          <div className="manager-period">
-            <label htmlFor="manager-days">Khoảng thời gian sự cố</label>
-            <select id="manager-days" value={days} onChange={(event) => {
-              setData(null);
-              setError(false);
-              setDays(Number(event.target.value));
-            }}>
-              <option value={7}>7 ngày qua</option><option value={30}>30 ngày qua</option><option value={90}>90 ngày qua</option>
-            </select>
-          </div>
-        </div>
-        {data && <>
-          <Metrics data={data} />
-          <div className="manager-grid">
-            <ResponseSummary data={data} days={days} />
-            <PendingApprovals items={data.pendingAccess} count={data.pendingAccessCount} />
-          </div>
-          <OverdueList items={data.overdue} />
-        </>}
-        {error ? <div className="incident-card incident-load-status">
-          <p className="form-error" role="alert">Chưa tải được tổng quan nhóm.</p>
-          <button type="button" className="secondary" onClick={() => {
+    <section className="employee-main manager-overview">
+      <div className="incident-heading manager-heading">
+        <div><h1>Tổng quan nhóm</h1>
+          <p className="incident-intro">Theo dõi sự cố và yêu cầu cấp quyền của nhân viên do bạn quản lý.</p></div>
+        <div className="manager-period">
+          <label htmlFor="manager-days">Khoảng thời gian sự cố</label>
+          <select id="manager-days" value={days} onChange={(event) => {
+            setData(null);
             setError(false);
-            setAttempt((current) => current + 1);
-          }}>Thử lại</button>
-        </div> : !data && <p className="incident-intro" role="status">Đang tải tổng quan…</p>}
-      </section>
-    </div>
+            setDays(Number(event.target.value));
+          }}>
+            <option value={7}>7 ngày qua</option><option value={30}>30 ngày qua</option><option value={90}>90 ngày qua</option>
+          </select>
+        </div>
+      </div>
+      {data && <>
+        <Metrics data={data} />
+        <div className="manager-grid">
+          <ResponseSummary data={data} days={days} />
+          <PendingApprovals items={data.pendingAccess} count={data.pendingAccessCount} />
+        </div>
+        <OverdueList items={data.overdue} />
+      </>}
+      {error ? <div className="incident-card incident-load-status">
+        <p className="form-error" role="alert">Chưa tải được tổng quan nhóm.</p>
+        <button type="button" className="secondary" onClick={() => {
+          setError(false);
+          setAttempt((current) => current + 1);
+        }}>Thử lại</button>
+      </div> : !data && <p className="incident-intro" role="status">Đang tải tổng quan…</p>}
+    </section>
   );
 }

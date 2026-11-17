@@ -1,55 +1,7 @@
-.workspace.employee-workspace {
-  max-width: 1280px;
-  margin: auto;
-  padding: clamp(12px, 3vw, 26px);
-}
-
-.employee-workspace > header {
-  padding: 12px 18px;
-  background: #fff;
-  border: 1px solid #e0e6f1;
-  border-radius: 12px;
-  margin-bottom: 14px;
-}
-
-.employee-logout-error { margin-inline: 16px; }
-.employee-portal {
+.workspace-content {
   --incident-border: #e0e6f1;
   --incident-quiet: #536481;
   --incident-blue: #3150c6;
-  display: grid;
-  grid-template-columns: 188px minmax(0, 1fr);
-  gap: 18px;
-}
-
-.employee-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 13px;
-  min-height: 440px;
-  padding: 17px 13px;
-  border: 1px solid var(--incident-border);
-  background: #fff;
-  border-radius: 12px;
-}
-
-.employee-sidebar p { margin: 0 8px; font-weight: 750; }
-.employee-sidebar button {
-  text-align: left;
-  font: inherit;
-  font-weight: 650;
-  color: #324cc0;
-  background: #edf0ff;
-  padding: 9px 10px;
-  border: 0;
-  border-radius: 8px;
-}
-.employee-sidebar small {
-  margin-top: auto;
-  padding: 12px 6px 0;
-  border-top: 1px solid var(--incident-border);
-  color: var(--incident-quiet);
-  overflow-wrap: anywhere;
 }
 
 .employee-main { min-width: 0; }
@@ -203,11 +155,6 @@
 }
 
 @media (max-width: 650px) {
-  .employee-portal { grid-template-columns: 1fr; gap: 12px; }
-  .employee-sidebar { min-height: 0; padding: 10px; flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; }
-  .employee-sidebar p,
-  .employee-sidebar button { font-size: .8rem; }
-  .employee-sidebar small { display: none; }
   .incident-fields { grid-template-columns: 1fr; }
   .incident-list button {
     grid-template-columns: minmax(0, 1fr) max-content;

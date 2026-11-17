@@ -27,7 +27,7 @@ export function ReplyDeadline({ sla, detailed = false }: { sla: ReplySla; detail
       <time dateTime={sla.firstReplyAt ?? sla.dueAt}>
         {weekday.format(firstReply ?? deadline)}
       </time>
-      <small>{feedback(sla)}</small>
+      <small>{firstReply && sla.state === 'ON_TIME' && 'Đã phản hồi · '}{feedback(sla)}</small>
     </div>;
   }
 

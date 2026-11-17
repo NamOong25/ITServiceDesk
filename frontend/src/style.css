@@ -384,16 +384,6 @@ button:focus-visible {
   place-items: center;
   padding: 20px;
 }
-.workspace {
-  padding: 24px max(24px, calc((100vw - 960px) / 2));
-}
-.workspace header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 26px;
-}
 .workspace-card {
   background: white;
   border: 1px solid #dce3f1;

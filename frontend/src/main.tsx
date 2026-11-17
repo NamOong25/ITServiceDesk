@@ -6,6 +6,7 @@ import { ItPortal } from './incidents/ItPortal';
 import { AccessPortal } from './incidents/AccessPortal';
 import { ManagerOverview } from './incidents/ManagerOverview';
 import './style.css';
+import './workspace.css';
 
 function Brand() {
   return <div className="brand"><span className="brand-icon" aria-hidden="true">›_</span>IT Service Desk</div>;
@@ -87,9 +88,15 @@ function Login({ onLogin }: { onLogin: (account: Account) => void }) {
 function WorkspacePage({ account, onLogout }: { account: Account; onLogout: () => void }) {
   const [logoutError, setLogoutError] = useState('');
   const [pending, setPending] = useState(false);
-  const manager = account.role === 'MANAGER';
   const accessSelected = location.pathname.startsWith('/access-requests');
-  const workspaceUrl = manager ? '/' : account.role === 'IT' ? '/it/incidents' : '/requests';
+  const navigation = {
+    EMPLOYEE: { title: 'Cổng nhân viên', role: 'Nhân viên', initials: 'NV', href: '/requests',
+      primary: 'Sự cố của tôi', access: 'Yêu cầu cấp quyền', icon: '▦' },
+    IT: { title: 'Đội IT', role: 'Nhân viên IT', initials: 'IT', href: '/it/incidents',
+      primary: 'Hàng đợi sự cố', access: 'Yêu cầu cấp quyền', icon: '▤' },
+    MANAGER: { title: 'Cổng quản lý', role: 'Quản lý', initials: 'QL', href: '/',
+      primary: 'Tổng quan', access: 'Yêu cầu cần duyệt', icon: '◫' },
+  }[account.role];
 
   async function logout() {
     if (pending) return;
@@ -106,20 +113,38 @@ function WorkspacePage({ account, onLogout }: { account: Account; onLogout: () =
   }
 
   return (
-    <main className="workspace employee-workspace">
-      <header><Brand /><button className="secondary" type="button" disabled={pending}
-        onClick={logout}>{pending ? 'Đang đăng xuất…' : 'Đăng xuất'}</button></header>
-      <nav className="workspace-tabs" aria-label="Cổng làm việc">
-        <a href={workspaceUrl} aria-current={accessSelected ? undefined : 'page'}>
-          {manager ? 'Tổng quan' : account.role === 'IT' ? 'Hàng đợi sự cố' : 'Sự cố của tôi'}
-        </a>
-        <a href="/access-requests" aria-current={accessSelected ? 'page' : undefined}>{manager ? 'Yêu cầu cần duyệt' : 'Yêu cầu cấp quyền'}</a>
-      </nav>
-      {logoutError && <p role="alert" className="form-error employee-logout-error">{logoutError}</p>}
-      {accessSelected ? <AccessPortal account={account} />
-        : manager ? <ManagerOverview email={account.email} />
-          : account.role === 'EMPLOYEE' ? <EmployeePortal email={account.email} /> : <ItPortal email={account.email} />}
-    </main>
+    <div className="workspace-shell">
+      <aside className="workspace-sidebar">
+        <Brand />
+        <p className="workspace-nav-title">{navigation.title}</p>
+        <nav aria-label="Cổng làm việc">
+          <a href={navigation.href} aria-current={accessSelected ? undefined : 'page'}>
+            <span aria-hidden="true">{navigation.icon}</span>{navigation.primary}
+          </a>
+          <a href="/access-requests" aria-current={accessSelected ? 'page' : undefined}>
+            <span aria-hidden="true">◇</span>{navigation.access}
+          </a>
+        </nav>
+        <div className="workspace-account">
+          <span className="workspace-avatar" aria-hidden="true">{navigation.initials}</span>
+          <div><strong title={account.email}>{account.email}</strong><small>{navigation.role}</small></div>
+        </div>
+      </aside>
+      <div className="workspace-page">
+        <header className="workspace-toolbar">
+          <div>{navigation.title} <span aria-hidden="true">/</span>
+            <strong>{accessSelected ? navigation.access : navigation.primary}</strong></div>
+          <button className="secondary" type="button" disabled={pending}
+            onClick={logout}>{pending ? 'Đang đăng xuất…' : 'Đăng xuất'}</button>
+        </header>
+        <main className="workspace-content">
+          {logoutError && <p role="alert" className="form-error">{logoutError}</p>}
+          {accessSelected ? <AccessPortal account={account} />
+            : account.role === 'MANAGER' ? <ManagerOverview />
+              : account.role === 'EMPLOYEE' ? <EmployeePortal /> : <ItPortal email={account.email} />}
+        </main>
+      </div>
+    </div>
   );
 }
 

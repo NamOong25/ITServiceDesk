@@ -136,7 +136,7 @@ function IncidentDetail({ incident, sent }: { incident: Incident; sent: boolean 
   );
 }
 
-export function EmployeePortal({ email }: { email: string }) {
+export function EmployeePortal() {
   const [screen, setScreen] = useState(currentScreen);
   const [list, setList] = useState<IncidentSummary[] | null>(null);
   const [detail, setDetail] = useState<Incident | null>(null);
@@ -190,23 +190,40 @@ export function EmployeePortal({ email }: { email: string }) {
   }
 
   const back = () => navigate('list');
+  const newCount = list?.filter((item) => item.status === 'NEW').length ?? 0;
+  const progressCount = list?.filter((item) => item.status === 'IN_PROGRESS').length ?? 0;
 
   return (
-    <div className="employee-portal">
-      <aside className="employee-sidebar">
-        <p>Cổng nhân viên</p>
-        <button type="button" onClick={back}>Yêu cầu của tôi</button>
-        <small>{email}</small>
-      </aside>
-      <section className="employee-main">
-        {screen === 'new' && <IncidentForm onCreated={submitted} onBack={back} />}
-        {screen === 'list' && <>
-          <div className="incident-heading">
-            <h1>Yêu cầu của tôi</h1>
-            <button type="button" className="incident-primary" onClick={() => navigate('new')}>+ Báo sự cố</button>
+    <section className="employee-main">
+      {screen === 'new' && <IncidentForm onCreated={submitted} onBack={back} />}
+      {screen === 'list' && <>
+        <div className="employee-hero">
+          <div><h1>Yêu cầu của tôi</h1>
+            <p>Theo dõi các sự cố bạn đã gửi và phản hồi từ đội IT.</p></div>
+          <button type="button" className="incident-primary" onClick={() => navigate('new')}>+ Báo sự cố</button>
+        </div>
+        <div className="employee-quick">
+          <a className="incident-card" href="/access-requests/new">
+            <span className="quick-icon access-icon" aria-hidden="true">◇</span>
+            <div><h2>Xin cấp quyền</h2><small>Gửi yêu cầu sử dụng phần mềm hoặc hệ thống nội bộ.</small></div>
+            <span className="quick-arrow" aria-hidden="true">↗</span>
+          </a>
+          {list && <div className="incident-card">
+            <span className="quick-icon open-icon" aria-hidden="true">✓</span>
+            <div><h2>{newCount + progressCount} sự cố đang mở</h2>
+              <small>{newCount} mới gửi · {progressCount} đang được đội IT xử lý</small></div>
+          </div>}
+        </div>
+        {list && <section className="incident-card incident-list" aria-label="Danh sách yêu cầu">
+          <div className="incident-list-heading">
+            <div><h2>Sự cố đã gửi</h2><p>Chọn một yêu cầu để xem tiến độ.</p></div>
+            <span>{list.length} sự cố</span>
           </div>
-          {list && <section className="incident-card incident-list" aria-label="Danh sách yêu cầu">
-            {list.length === 0 ? <p>Bạn chưa có yêu cầu nào.</p> : list.map((item) => (
+          {list.length === 0 ? <p className="incident-empty">Bạn chưa có yêu cầu nào.</p> : <>
+            <div className="incident-list-columns" aria-hidden="true">
+              <span>Mã yêu cầu</span><span>Sự cố</span><span>Trạng thái</span><span>Thời điểm gửi</span>
+            </div>
+            {list.map((item) => (
               <button key={item.id} type="button" onClick={() => navigate(item.id)}>
                 <span className="incident-code">{ticketCode(item.id)}</span>
                 <span><strong>{item.title}</strong><small>{categories[item.category]}</small></span>
@@ -214,22 +231,22 @@ export function EmployeePortal({ email }: { email: string }) {
                 <time dateTime={item.createdAt}>{dateFormat.format(new Date(item.createdAt))}</time>
               </button>
             ))}
-          </section>}
-        </>}
-        {typeof screen === 'number' && <>
-          <button type="button" className="incident-back" onClick={back}>← Yêu cầu của tôi</button>
-          {detail?.id === screen && <IncidentDetail incident={detail} sent={sent === detail.id} />}
-        </>}
-        {error && <div className="incident-card incident-load-status">
-          <p className="form-error" role="alert">{error}</p>
-          <button className="secondary" type="button" onClick={() => {
-            setError('');
-            setAttempt((current) => current + 1);
-          }}>Thử lại</button>
-        </div>}
-        {!error && ((screen === 'list' && !list) || (typeof screen === 'number' && !detail)) &&
-          <p className="incident-intro" role="status">Đang tải yêu cầu…</p>}
-      </section>
-    </div>
+          </>}
+        </section>}
+      </>}
+      {typeof screen === 'number' && <>
+        <button type="button" className="incident-back" onClick={back}>← Yêu cầu của tôi</button>
+        {detail?.id === screen && <IncidentDetail incident={detail} sent={sent === detail.id} />}
+      </>}
+      {error && <div className="incident-card incident-load-status">
+        <p className="form-error" role="alert">{error}</p>
+        <button className="secondary" type="button" onClick={() => {
+          setError('');
+          setAttempt((current) => current + 1);
+        }}>Thử lại</button>
+      </div>}
+      {!error && ((screen === 'list' && !list) || (typeof screen === 'number' && !detail)) &&
+        <p className="incident-intro" role="status">Đang tải yêu cầu…</p>}
+    </section>
   );
 }
