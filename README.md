@@ -2,7 +2,7 @@
 
 Ứng dụng hỗ trợ IT nội bộ. Các chức năng dự kiến gồm báo sự cố, theo dõi hạn phản hồi và xin cấp quyền có phê duyệt.
 
-Bước khởi tạo có frontend React + TypeScript, backend Spring Boot và PostgreSQL chạy bằng Docker Compose. Trang web kiểm tra kết nối PostgreSQL thông qua backend.
+Dự án dùng React + TypeScript, Spring Boot và PostgreSQL chạy bằng Docker Compose. Backend xác thực tài khoản và kiểm tra quyền của nhân viên, IT và quản lý.
 
 ## Chạy trên Windows
 
@@ -19,7 +19,7 @@ Mở CMD thứ hai để chạy backend.
 
 ```cmd
 cd /d "D:\Video OBS\Portfolio\ITServiceDesk\backend"
-mvnw.cmd spring-boot:run
+mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=demo
 ```
 
 Mở CMD thứ ba để chạy frontend.
@@ -30,7 +30,17 @@ npm ci
 npm run dev
 ```
 
-Mở [trang web](http://127.0.0.1:5173). Khi PostgreSQL và backend đã sẵn sàng, trang hiện **Đã kết nối PostgreSQL**. Bạn cũng có thể mở [địa chỉ kiểm tra hệ thống](http://127.0.0.1:8081/actuator/health/database) và xem kết quả `{"status":"UP"}`.
+Mở [trang web](http://127.0.0.1:5173) và đăng nhập bằng một trong ba tài khoản demo sau.
+
+| Vai trò | Email |
+| --- | --- |
+| Nhân viên | nhanvien@itsd.example |
+| IT | it@itsd.example |
+| Quản lý | quanly@itsd.example |
+
+Mật khẩu demo dùng chung là `DemoItsd-2026!`. Profile `demo` tạo và cho phép dùng các tài khoản này trên môi trường local. Flyway tạo bảng tài khoản khi backend khởi động, nên PostgreSQL cần sẵn sàng trước.
+
+[Kiểm tra kết nối PostgreSQL](http://127.0.0.1:8081/actuator/health/database) trả về `{"status":"UP"}` khi kết nối thành công.
 
 `npm run build` tạo bản build frontend. Trong backend, `mvnw.cmd package` tạo tệp JAR.
 
