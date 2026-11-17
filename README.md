@@ -4,6 +4,8 @@
 
 Dự án dùng React + TypeScript, Spring Boot và PostgreSQL chạy bằng Docker Compose. Backend xác thực tài khoản và kiểm tra quyền của nhân viên, IT và quản lý.
 
+[Kịch bản demo portfolio và cách bật dữ liệu mẫu](docs/DEMO.md).
+
 ## Chạy trên Windows
 
 Cần Java 21, Node.js (20.19 trở lên trong nhánh 20 hoặc 22.12 trở lên) và Docker Desktop đang chạy. Maven Wrapper nằm sẵn trong thư mục backend.

@@ -4,6 +4,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -11,6 +12,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @Profile("demo")
 class DemoAccounts {
     @Bean
+    @Order(0)
     ApplicationRunner seedDemoAccounts(JdbcClient db, PasswordEncoder encoder) {
         return args -> {
             add(db, encoder, "nhanvien@itsd.example", "EMPLOYEE");
