@@ -22,6 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequestMapping("/api/incidents")
 class IncidentController {
+    private static final String REQUESTER_REPLY = "REQUESTER_REPLY";
     private static final String OWN_INCIDENTS = """
             select i.id, i.title, i.category, i.impact, i.description, i.status, i.created_at, handler.email as assignee
             from incident i
@@ -49,15 +50,37 @@ class IncidentController {
     @GetMapping("/{id}")
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public Incident detail(Authentication account, @PathVariable long id) {
-        Incident incident = db.sql(OWN_INCIDENTS + "and i.id = :id")
-                .param("email", account.getName())
+        return withTimeline(ownIncident(id, account.getName(), false));
+    }
+
+    @PostMapping("/{id}/messages")
+    @Transactional
+    public Incident reply(Authentication account, @PathVariable long id, @RequestBody Reply message) {
+        if (message.submissionKey() == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        String body = requiredText(message.body(), 4000);
+        String actor = account.getName();
+        Incident incident = ownIncident(id, actor, true);
+
+        if (!IncidentActivity.isMessageReplay(db, id, actor, REQUESTER_REPLY, body, message.submissionKey())) {
+            if (!"IN_PROGRESS".equals(incident.status())) throw new ResponseStatusException(HttpStatus.CONFLICT);
+            IncidentActivity.addMessage(db, id, actor, REQUESTER_REPLY, body, message.submissionKey());
+        }
+        return withTimeline(incident);
+    }
+
+    private Incident ownIncident(long id, String email, boolean lock) {
+        return db.sql(OWN_INCIDENTS + "and i.id = :id" + (lock ? " for update of i" : ""))
+                .param("email", email)
                 .param("id", id)
                 .query(IncidentController::readIncident)
                 .optional()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    }
+
+    private Incident withTimeline(Incident incident) {
         return new Incident(incident.id(), incident.title(), incident.category(), incident.impact(),
                 incident.description(), incident.status(), incident.createdAt(), incident.assignee(),
-                IncidentActivity.timeline(db, id, false));
+                IncidentActivity.timeline(db, incident.id(), false));
     }
 
     @PostMapping
@@ -115,6 +138,7 @@ class IncidentController {
 
     record Submission(UUID submissionKey, String title, Category category, Impact impact, String description) {}
 
+    record Reply(String body, UUID submissionKey) {}
     record IncidentSummary(long id, String title, String category, String status, OffsetDateTime createdAt) {}
 
     record Incident(long id, String title, String category, String impact, String description,

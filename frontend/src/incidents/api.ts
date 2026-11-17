@@ -56,6 +56,14 @@ export async function createIncident(draft: Draft, submissionKey: string): Promi
     'Chưa gửi được yêu cầu. Vui lòng thử lại.');
 }
 
+export async function replyToIncident(id: number, body: string, submissionKey: string): Promise<Incident> {
+  const response = await postWithCsrf('/api/incidents/' + id + '/messages', JSON.stringify({ body, submissionKey }));
+  if (response.status === 409) {
+    throw new Error('Sự cố đã đổi trạng thái hoặc phản hồi đã được ghi nhận. Hãy tải lại yêu cầu.');
+  }
+  return readResponse(response, 'Chưa gửi được phản hồi. Vui lòng thử lại.');
+}
+
 export const statusLabels = {
   NEW: 'Mới',
   IN_PROGRESS: 'Đang xử lý',
@@ -73,7 +81,7 @@ export function ticketCode(id: number) {
 export type IncidentStatus = keyof typeof statusLabels;
 export type Activity = {
   id: number;
-  kind: 'ASSIGNED' | 'PUBLIC_REPLY' | 'INTERNAL_NOTE' | 'RESOLVED';
+  kind: 'ASSIGNED' | 'PUBLIC_REPLY' | 'REQUESTER_REPLY' | 'INTERNAL_NOTE' | 'RESOLVED';
   actor: string;
   body: string | null;
   createdAt: string;

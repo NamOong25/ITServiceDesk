@@ -105,6 +105,22 @@
 }
 .incident-event time,
 .incident-list small { display: block; color: var(--incident-quiet); margin-top: 3px; }
+.incident-event[data-kind="PUBLIC_REPLY"], .incident-event[data-kind="REQUESTER_REPLY"] { align-items: flex-start; }
+.incident-event[data-kind="PUBLIC_REPLY"] > span { background: #e9eeff; color: #374eac; }
+.incident-event .incident-message { padding: 9px 13px; border-radius: 0 9px 9px; background: #f2f5fd; min-width: 0; }
+.incident-event .incident-message .incident-description { margin-top: 5px; }
+.incident-event[data-kind="REQUESTER_REPLY"] .incident-message { background: #ebf6f1; }
+
+.requester-reply {
+  margin: 16px -17px -17px;
+  padding: 14px 17px;
+  border-top: 1px solid var(--incident-border);
+}
+.incident-card .requester-reply label { margin-top: 0; }
+.incident-card .requester-reply textarea { min-height: 68px; }
+.requester-reply-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 7px; }
+.requester-reply-actions small { color: var(--incident-quiet); }
+
 .incident-card dl { margin: 8px 0 0; }
 .incident-card dl > div {
   display: flex;

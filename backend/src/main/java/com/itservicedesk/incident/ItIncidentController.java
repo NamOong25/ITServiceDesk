@@ -111,31 +111,10 @@ class ItIncidentController {
         String text = IncidentController.requiredText(message.body(), 4000);
         String actor = account.getName();
         Handling state = lockIncident(id);
-        var previous = db.sql("""
-                select a.kind, a.body
-                from incident_activity a join app_user u on u.id = a.actor_id
-                where a.incident_id = :id and u.email = :actor and a.submission_key = :key
-                """)
-                .param("id", id)
-                .param("actor", actor)
-                .param("key", message.submissionKey())
-                .query(PreviousMessage.class)
-                .optional();
-        if (previous.isPresent()) {
-            requireState(previous.get().kind().equals(message.kind().name()) && previous.get().body().equals(text));
-            return;
-        }
+        String kind = message.kind().name();
+        if (IncidentActivity.isMessageReplay(db, id, actor, kind, text, message.submissionKey())) return;
         requireHandler(state, actor);
-        db.sql("""
-                insert into incident_activity (incident_id, actor_id, kind, body, submission_key)
-                select :id, u.id, :kind, :body, :key from app_user u where u.email = :actor
-                """)
-                .param("id", id)
-                .param("actor", actor)
-                .param("kind", message.kind().name())
-                .param("body", text)
-                .param("key", message.submissionKey())
-                .update();
+        IncidentActivity.addMessage(db, id, actor, kind, text, message.submissionKey());
     }
 
     private Handling lockIncident(long id) {
@@ -172,7 +151,6 @@ class ItIncidentController {
 
     enum MessageKind { PUBLIC_REPLY, INTERNAL_NOTE }
     record Message(MessageKind kind, String body, UUID submissionKey) {}
-    record PreviousMessage(String kind, String body) {}
     record Handling(String status, String assignee) {}
     record QueueItem(long id, String title, String category, String impact, String status,
                      OffsetDateTime createdAt, String requester, String assignee, FirstReplySla sla) {}

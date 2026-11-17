@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { categories, createIncident, dateFormat, getIncident, impacts, listIncidents, statusLabels, ticketCode,
+import { categories, createIncident, dateFormat, getIncident, impacts, listIncidents, replyToIncident, statusLabels, ticketCode,
   type Draft, type Incident, type IncidentSummary } from './api';
 import { IncidentTimeline } from './IncidentTimeline';
 import './employee.css';
@@ -107,7 +107,64 @@ function IncidentForm({ onCreated, onBack }: {
   );
 }
 
-function IncidentDetail({ incident, sent }: { incident: Incident; sent: boolean }) {
+function RequesterReplyForm({ id, onReply }: { id: number; onReply: (incident: Incident) => void }) {
+  const [draft, setDraft] = useState('');
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState('');
+  const submissionKey = useRef<string | null>(null);
+  const sending = useRef(false);
+  const mounted = useRef(false);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (sending.current || !draft.trim()) return;
+    sending.current = true;
+    setPending(true);
+    setError('');
+
+    try {
+      const key = submissionKey.current ??= crypto.randomUUID();
+      const updated = await replyToIncident(id, draft.trim(), key);
+      if (!mounted.current) return;
+      submissionKey.current = null;
+      setDraft('');
+      onReply(updated);
+    } catch (failure) {
+      if (mounted.current) setError(failure instanceof TypeError ? 'Mất kết nối. Bạn có thể thử gửi lại.'
+        : failure instanceof Error ? failure.message : 'Chưa gửi được phản hồi. Vui lòng thử lại.');
+    } finally {
+      sending.current = false;
+      if (mounted.current) setPending(false);
+    }
+  }
+
+  return <form className="requester-reply" onSubmit={submit} aria-busy={pending}>
+    <label htmlFor="requester-reply">Trả lời đội IT</label>
+    <textarea id="requester-reply" rows={2} maxLength={4000} required readOnly={pending}
+      placeholder="Ví dụ mã lỗi hoặc các bước bạn đã thử" value={draft}
+      onChange={(event) => {
+        if (event.target.value.trim() !== draft.trim()) submissionKey.current = null;
+        setDraft(event.target.value);
+        setError('');
+      }} />
+    {error && <p className="form-error" role="alert">{error}</p>}
+    <div className="requester-reply-actions">
+      <small>Đội IT sẽ thấy phản hồi trong sự cố này.</small>
+      <button className="incident-primary" type="submit" disabled={pending || !draft.trim()}>
+        {pending ? 'Đang gửi…' : 'Gửi phản hồi →'}
+      </button>
+    </div>
+  </form>;
+}
+
+function IncidentDetail({ incident, sent, onReply }: {
+  incident: Incident; sent: boolean; onReply: (incident: Incident) => void;
+}) {
   return (
     <>
       <div className="incident-heading">
@@ -120,7 +177,9 @@ function IncidentDetail({ incident, sent }: { incident: Incident; sent: boolean 
           <article className="incident-card">
             <h2>Mô tả sự cố</h2><p className="incident-description">{incident.description}</p>
           </article>
-          <IncidentTimeline createdAt={incident.createdAt} activity={incident.activity} employee />
+          <IncidentTimeline createdAt={incident.createdAt} activity={incident.activity} employee>
+            {incident.status === 'IN_PROGRESS' && <RequesterReplyForm id={incident.id} onReply={onReply} />}
+          </IncidentTimeline>
         </div>
         <aside className="incident-card">
           <h2>Thông tin yêu cầu</h2>
@@ -236,7 +295,7 @@ export function EmployeePortal() {
       </>}
       {typeof screen === 'number' && <>
         <button type="button" className="incident-back" onClick={back}>← Yêu cầu của tôi</button>
-        {detail?.id === screen && <IncidentDetail incident={detail} sent={sent === detail.id} />}
+        {detail?.id === screen && <IncidentDetail key={detail.id} incident={detail} sent={sent === detail.id} onReply={setDetail} />}
       </>}
       {error && <div className="incident-card incident-load-status">
         <p className="form-error" role="alert">{error}</p>
