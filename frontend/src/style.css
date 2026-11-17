@@ -1,0 +1,46 @@
+:root {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  color: #14233b;
+  background: #f4f6f9;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { min-height: 100svh; display: grid; place-items: center; padding: 1.5rem; }
+.card {
+  width: min(100%, 32rem);
+  padding: clamp(1.5rem, 5vw, 2.5rem);
+  background: white;
+  border: 1px solid #e1e7ef;
+  border-radius: 1rem;
+  box-shadow: 0 12px 36px #14233b0d;
+}
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  color: white;
+  background: #244fc3;
+  border-radius: .75rem;
+}
+.brand-mark svg { width: 1.55rem; height: 1.55rem; }
+h1 { margin: 1rem 0 .25rem; font-size: clamp(1.8rem, 7vw, 2.5rem); letter-spacing: -.045em; }
+p { margin: 0; color: #53647c; }
+.connection { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; margin-top: 1.5rem; }
+.status { display: inline-flex; align-items: center; gap: .55rem; font-weight: 600; }
+.status::before { content: ""; width: .55rem; height: .55rem; border-radius: 50%; background: currentColor; }
+.status[data-state="connected"] { color: #1d6a51; }
+.status[data-state="unavailable"], .status[data-state="offline"] { color: #9e3142; }
+button {
+  font: inherit;
+  font-weight: 600;
+  color: #244fc3;
+  background: white;
+  border: 1px solid #c9d4e6;
+  border-radius: .5rem;
+  padding: .5rem .8rem;
+  cursor: pointer;
+}
+button:focus-visible { outline: 2px solid #244fc3; outline-offset: 2px; }
+button:disabled { opacity: .65; cursor: default; }

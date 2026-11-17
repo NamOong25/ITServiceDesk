@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: it-service-desk
+  datasource:
+    url: ${ITSD_DB_URL:jdbc:postgresql://127.0.0.1:5433/it_service_desk}
+    username: ${ITSD_DB_USER:itsd}
+    password: ${ITSD_DB_PASSWORD:itsd_local}
+    hikari:
+      connection-timeout: 2000
+      initialization-fail-timeout: -1
+
+server:
+  address: 127.0.0.1
+  port: 8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      group:
+        database:
+          include: db
