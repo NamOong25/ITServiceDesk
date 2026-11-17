@@ -171,7 +171,8 @@
 .incident-load-status { margin-top: 15px; }
 .incident-list button {
   display: grid;
-  grid-template-columns: 75px minmax(0, 1fr) 44px minmax(85px, auto);
+  grid-template-columns: max-content minmax(0, 1fr) max-content max-content;
+  grid-template-areas: "code subject status time";
   align-items: center;
   gap: 10px;
   width: 100%;
@@ -185,7 +186,15 @@
 }
 .incident-list button + button { border-top: 1px solid var(--incident-border); }
 .incident-list button:hover { background: #f6f8ff; }
-.incident-list time { color: var(--incident-quiet); font-size: .79rem; }
+.incident-list button > .incident-code { grid-area: code; }
+.incident-list button > span:nth-child(2) { grid-area: subject; min-width: 0; }
+.incident-list button > .incident-pill { grid-area: status; justify-self: start; }
+.incident-list time {
+  grid-area: time;
+  color: var(--incident-quiet);
+  font-size: .79rem;
+  white-space: nowrap;
+}
 .incident-load-status button { margin-top: 10px; }
 .employee-main .form-error { margin-top: 10px; }
 
@@ -200,5 +209,13 @@
   .employee-sidebar button { font-size: .8rem; }
   .employee-sidebar small { display: none; }
   .incident-fields { grid-template-columns: 1fr; }
-  .incident-list button { grid-template-columns: minmax(0, 1fr) auto; }
+  .incident-list button {
+    grid-template-columns: minmax(0, 1fr) max-content;
+    grid-template-areas:
+      "code status"
+      "subject subject"
+      "time time";
+    row-gap: 5px;
+  }
+  .incident-list button > .incident-pill { justify-self: end; }
 }
