@@ -71,3 +71,9 @@ Nhãn **Sắp đến hạn** áp dụng khi còn tối đa 30 phút làm việc.
 2. Dùng tài khoản quản lý demo. Mở **Yêu cầu cần duyệt**, chọn yêu cầu rồi duyệt hoặc từ chối. Khi từ chối, nhập lý do để nhân viên xem lại.
 3. Dùng tài khoản IT demo. Trong **Yêu cầu cấp quyền**, chọn yêu cầu đã duyệt và bấm **Nhận xử lý**. Sau khi cấp quyền trên phần mềm đích, bấm **Xác nhận đã cấp quyền**.
 4. Quay lại tài khoản nhân viên để xem quyết định của quản lý và trạng thái cuối cùng.
+
+## Xem tổng quan của quản lý
+
+Đăng nhập bằng tài khoản quản lý và mở **Tổng quan**. Bộ lọc 7, 30 hoặc 90 ngày tính các sự cố được gửi trong số ngày lịch đã chọn, tính cả hôm nay theo giờ Việt Nam. Thẻ phản hồi trung bình chỉ tính những sự cố đã có phản hồi công khai đầu tiên, theo phút làm việc và làm tròn đến phút gần nhất.
+
+Thẻ chờ duyệt đếm toàn bộ yêu cầu cấp quyền đang chờ do bạn phụ trách. Trang tổng quan hiển thị tối đa ba yêu cầu chờ lâu nhất và dẫn đến danh sách đầy đủ.

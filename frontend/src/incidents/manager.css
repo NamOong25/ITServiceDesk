@@ -1,0 +1,75 @@
+.manager-heading { align-items: flex-end; flex-wrap: wrap; }
+.manager-period label { margin: 0 0 5px; font-size: .82rem; }
+.manager-period select {
+  padding: 8px 10px;
+  color: #40536e;
+  background: white;
+  border: 1px solid #cdd7e8;
+  border-radius: 8px;
+  font: inherit;
+}
+.manager-metrics, .manager-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 15px;
+  align-items: stretch;
+}
+.manager-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.manager-grid { grid-template-columns: 1.25fr 1fr; align-items: start; }
+.manager-metric { display: flex; align-items: flex-start; gap: 10px; }
+.manager-metric h2 { color: #40536e; font-size: .85rem; line-height: 1.35; }
+.manager-metric strong { display: block; font-size: 1.65rem; margin-top: 4px; }
+.manager-metric strong small { font-size: .84rem; }
+.manager-metric p { color: #536481; font-size: .78rem; line-height: 1.45; }
+.manager-indicator {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-weight: 750;
+}
+.manager-indicator.overdue { color: #9b263f; background: #fee8eb; }
+.manager-indicator.response { color: #344cb8; background: #e9eeff; }
+.manager-indicator.waiting { color: #815406; background: #fff0d8; }
+.manager-bar { display: flex; height: 12px; border-radius: 20px; overflow: hidden; margin-top: 16px; }
+.manager-bar span.on-time, .manager-legend span.on-time { background: #388f7b; }
+.manager-bar span.late, .manager-legend span.late { background: #c7667a; }
+.manager-bar span.overdue, .manager-legend span.overdue { background: #a63350; }
+.manager-bar span.waiting, .manager-legend span.waiting { background: #d5a449; }
+.manager-legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 10px;
+  padding: 0;
+  margin: 13px 0 0;
+  list-style: none;
+  color: #435570;
+  font-size: .82rem;
+}
+.manager-legend span { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; }
+.manager-panel-heading, .manager-request-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.manager-link { color: #3150c6; font-size: .82rem; font-weight: 750; text-decoration: none; white-space: nowrap; }
+.manager-requests { list-style: none; margin: 8px 0 0; padding: 0; }
+.manager-requests li + li { border-top: 1px solid var(--incident-border); }
+.manager-request-row { color: #16223a; padding: 9px 0; text-decoration: none; align-items: center; font-size: .86rem; }
+.manager-request-row:hover strong, .manager-link:hover { color: #3150c6; text-decoration: underline; }
+.manager-request-row small { display: block; color: #536481; overflow-wrap: anywhere; }
+.manager-request-row strong { overflow-wrap: anywhere; }
+.manager-overdue { margin-top: 14px; }
+.manager-overdue table { width: 100%; min-width: 565px; margin-top: 10px; border-collapse: collapse; text-align: left; font-size: .86rem; }
+.manager-overdue th, .manager-overdue td { padding: 9px 8px; border-bottom: 1px solid var(--incident-border); }
+.manager-overdue th { color: #536481; background: #f4f7fb; }
+.manager-overdue tbody tr:last-child td { border-bottom: 0; }
+.manager-overdue td { overflow-wrap: anywhere; }
+.manager-overdue td strong, .manager-overdue td small { display: block; }
+.manager-overdue time { color: #9b263f; font-weight: 750; white-space: nowrap; }
+
+@media (max-width: 1000px) {
+  .manager-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 760px) {
+  .manager-metrics { grid-template-columns: 1fr; }
+}

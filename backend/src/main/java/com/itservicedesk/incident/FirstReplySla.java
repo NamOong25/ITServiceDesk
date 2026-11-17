@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 record FirstReplySla(Instant dueAt, Instant firstReplyAt, State state, long minutes, List<WorkPeriod> periods) {
-    private static final ZoneId ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+    static final ZoneId ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
     private static final LocalTime OPEN = LocalTime.of(8, 0);
     private static final LocalTime CLOSE = LocalTime.of(17, 0);
     private static final Duration RESPONSE_TARGET = Duration.ofHours(2);
@@ -54,7 +54,7 @@ record FirstReplySla(Instant dueAt, Instant firstReplyAt, State state, long minu
         return List.copyOf(periods);
     }
 
-    private static Duration workingTime(Instant start, Instant end) {
+    static Duration workingTime(Instant start, Instant end) {
         if (!start.isBefore(end)) return Duration.ZERO;
         LocalDate first = start.atZone(ZONE).toLocalDate();
         LocalDate last = end.atZone(ZONE).toLocalDate();

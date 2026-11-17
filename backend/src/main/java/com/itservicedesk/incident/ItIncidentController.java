@@ -40,10 +40,7 @@ class ItIncidentController {
     @GetMapping
     List<QueueItem> queue() {
         Instant now = Instant.now();
-        String firstReply = """
-                , (select min(a.created_at) from incident_activity a
-                   where a.incident_id = i.id and a.kind = 'PUBLIC_REPLY') as first_reply_at
-                """;
+        String firstReply = ", " + IncidentActivity.FIRST_PUBLIC_REPLY + " as first_reply_at ";
         return db.sql("select " + SUMMARY_COLUMNS + firstReply + FROM_INCIDENTS
                         + "order by i.created_at desc, i.id desc")
                 .query((row, index) -> {
