@@ -51,3 +51,10 @@ Thông tin kết nối mặc định dành cho máy phát triển. Có thể ghi
 ## Thử luồng báo sự cố
 
 Đăng nhập bằng tài khoản nhân viên demo. Chọn **Báo sự cố** trong **Yêu cầu của tôi**, nhập tiêu đề, nhóm sự cố, phạm vi ảnh hưởng và mô tả. Sau khi gửi, trang chi tiết hiển thị mã yêu cầu và trạng thái **Mới**. Bạn có thể tải lại trang chi tiết hoặc quay về danh sách để mở lại yêu cầu.
+
+## Thử luồng xử lý sự cố
+
+1. Đăng nhập với tài khoản nhân viên demo và gửi một sự cố.
+2. Đăng nhập với tài khoản IT demo ở cửa sổ ẩn danh. Trong **Hàng đợi IT**, tìm mã sự cố rồi mở chi tiết và bấm **Nhận xử lý**.
+3. Gửi một **Phản hồi** và lưu một **Ghi chú nội bộ**. Sau đó bấm **Đánh dấu đã giải quyết**.
+4. Quay lại trang chi tiết của nhân viên và tải lại. Trang hiển thị phản hồi công khai và trạng thái **Đã giải quyết**. Ghi chú nội bộ chỉ hiển thị ở phía IT.

@@ -50,6 +50,7 @@ class SecurityConfig {
                         .requestMatchers("/api/workspaces/employee").hasRole("EMPLOYEE")
                         .requestMatchers("/api/incidents", "/api/incidents/**").hasRole("EMPLOYEE")
                         .requestMatchers("/api/workspaces/it").hasRole("IT")
+                        .requestMatchers("/api/it/incidents", "/api/it/incidents/**").hasRole("IT")
                         .requestMatchers("/api/workspaces/manager").hasRole("MANAGER")
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
                         .anyRequest().denyAll())

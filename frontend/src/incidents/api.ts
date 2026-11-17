@@ -24,13 +24,15 @@ export type IncidentSummary = {
   id: number;
   title: string;
   category: keyof typeof categories;
-  status: 'NEW';
+  status: IncidentStatus;
   createdAt: string;
 };
 
 export type Incident = IncidentSummary & {
   impact: keyof typeof impacts;
   description: string;
+  assignee: string | null;
+  activity: Activity[];
 };
 
 async function readResponse<T>(response: Response, fallback: string): Promise<T> {
@@ -52,4 +54,59 @@ export async function getIncident(id: number, signal: AbortSignal): Promise<Inci
 export async function createIncident(draft: Draft, submissionKey: string): Promise<Incident> {
   return readResponse(await postWithCsrf('/api/incidents', JSON.stringify({ ...draft, submissionKey })),
     'Chưa gửi được yêu cầu. Vui lòng thử lại.');
+}
+
+export const statusLabels = {
+  NEW: 'Mới',
+  IN_PROGRESS: 'Đang xử lý',
+  RESOLVED: 'Đã giải quyết',
+} as const;
+
+export const dateFormat = new Intl.DateTimeFormat('vi-VN', {
+  dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh',
+});
+
+export function ticketCode(id: number) {
+  return 'IT-' + id;
+}
+
+export type IncidentStatus = keyof typeof statusLabels;
+export type Activity = {
+  id: number;
+  kind: 'ASSIGNED' | 'PUBLIC_REPLY' | 'INTERNAL_NOTE' | 'RESOLVED';
+  actor: string;
+  body: string | null;
+  createdAt: string;
+};
+
+export type QueueItem = IncidentSummary & {
+  impact: keyof typeof impacts;
+  requester: string;
+  assignee: string | null;
+};
+
+export type ItDetail = {
+  ticket: QueueItem & { description: string };
+  activity: Activity[];
+};
+
+const itPath = '/api/it/incidents';
+
+export async function listItIncidents(signal: AbortSignal): Promise<QueueItem[]> {
+  return readResponse(await fetch(itPath, { signal }), 'Chưa tải được hàng đợi IT.');
+}
+
+export async function getItIncident(id: number, signal: AbortSignal): Promise<ItDetail> {
+  return readResponse(await fetch(itPath + '/' + id, { signal }), 'Chưa tải được chi tiết sự cố.');
+}
+
+export async function sendItUpdate(id: number, action: 'claim' | 'resolve' | 'messages',
+  payload?: { kind: 'PUBLIC_REPLY' | 'INTERNAL_NOTE'; body: string; submissionKey: string }): Promise<void> {
+  const response = await postWithCsrf(itPath + '/' + id + '/' + action,
+    payload ? JSON.stringify(payload) : undefined);
+  if (response.status === 403 || response.status === 409) {
+    throw new Error('Sự cố đã đổi trạng thái hoặc người xử lý. Hãy tải lại trang.');
+  }
+  if (response.status === 401) throw new Error('Phiên đăng nhập đã hết hạn. Hãy tải lại trang để đăng nhập.');
+  if (!response.ok) throw new Error('Chưa cập nhật được sự cố. Vui lòng thử lại.');
 }

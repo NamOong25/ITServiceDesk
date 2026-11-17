@@ -8,6 +8,8 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,9 +23,10 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/incidents")
 class IncidentController {
     private static final String OWN_INCIDENTS = """
-            select i.id, i.title, i.category, i.impact, i.description, i.status, i.created_at
+            select i.id, i.title, i.category, i.impact, i.description, i.status, i.created_at, handler.email as assignee
             from incident i
             join app_user u on u.id = i.requester_id
+            left join app_user handler on handler.id = i.assignee_id
             where u.email = :email
             """;
 
@@ -44,13 +47,17 @@ class IncidentController {
     }
 
     @GetMapping("/{id}")
-    Incident detail(Authentication account, @PathVariable long id) {
-        return db.sql(OWN_INCIDENTS + "and i.id = :id")
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
+    public Incident detail(Authentication account, @PathVariable long id) {
+        Incident incident = db.sql(OWN_INCIDENTS + "and i.id = :id")
                 .param("email", account.getName())
                 .param("id", id)
                 .query(IncidentController::readIncident)
                 .optional()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        return new Incident(incident.id(), incident.title(), incident.category(), incident.impact(),
+                incident.description(), incident.status(), incident.createdAt(), incident.assignee(),
+                IncidentActivity.timeline(db, id, false));
     }
 
     @PostMapping
@@ -68,7 +75,8 @@ class IncidentController {
                 from app_user u where u.email = :email
                 on conflict (requester_id, submission_key)
                 do update set submission_key = excluded.submission_key
-                returning id, title, category, impact, description, status, created_at
+                returning id, title, category, impact, description, status, created_at,
+                    (select email from app_user where id = incident.assignee_id) as assignee
                 """)
                 .param("email", account.getName())
                 .param("submissionKey", submission.submissionKey())
@@ -91,10 +99,10 @@ class IncidentController {
     private static Incident readIncident(ResultSet row, int index) throws SQLException {
         return new Incident(row.getLong("id"), row.getString("title"), row.getString("category"),
                 row.getString("impact"), row.getString("description"), row.getString("status"),
-                row.getObject("created_at", OffsetDateTime.class));
+                row.getObject("created_at", OffsetDateTime.class), row.getString("assignee"), List.of());
     }
 
-    private static String requiredText(String value, int maxLength) {
+    static String requiredText(String value, int maxLength) {
         String text = value == null ? "" : value.strip();
         if (text.isEmpty() || text.length() > maxLength || text.indexOf('\0') >= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
@@ -110,5 +118,5 @@ class IncidentController {
     record IncidentSummary(long id, String title, String category, String status, OffsetDateTime createdAt) {}
 
     record Incident(long id, String title, String category, String impact, String description,
-                    String status, OffsetDateTime createdAt) {}
+                    String status, OffsetDateTime createdAt, String assignee, List<IncidentActivity> activity) {}
 }

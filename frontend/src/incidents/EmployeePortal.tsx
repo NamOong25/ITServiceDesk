@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { categories, createIncident, getIncident, impacts, listIncidents,
+import { categories, createIncident, dateFormat, getIncident, impacts, listIncidents, statusLabels, ticketCode,
   type Draft, type Incident, type IncidentSummary } from './api';
+import { IncidentTimeline } from './IncidentTimeline';
 import './employee.css';
 
 type Screen = 'list' | 'new' | number;
@@ -11,14 +12,6 @@ function currentScreen(): Screen {
   const match = /^\/requests\/([1-9][0-9]*)$/.exec(path);
   const id = match && Number(match[1]);
   return id && Number.isSafeInteger(id) ? id : 'list';
-}
-
-const dateFormat = new Intl.DateTimeFormat('vi-VN', {
-  dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh',
-});
-
-function ticketCode(id: number) {
-  return 'IT-' + id;
 }
 
 function IncidentForm({ onCreated, onBack }: {
@@ -115,12 +108,11 @@ function IncidentForm({ onCreated, onBack }: {
 }
 
 function IncidentDetail({ incident, sent }: { incident: Incident; sent: boolean }) {
-  const submittedAt = dateFormat.format(new Date(incident.createdAt));
   return (
     <>
       <div className="incident-heading">
         <div><p className="incident-code">{ticketCode(incident.id)} · Báo sự cố</p><h1>{incident.title}</h1></div>
-        <span className="incident-pill">Mới</span>
+        <span className="incident-pill" data-status={incident.status}>{statusLabels[incident.status]}</span>
       </div>
       {sent && <p className="incident-success" role="status">Đã gửi yêu cầu. Bạn có thể theo dõi tiến độ tại đây.</p>}
       <div className="incident-layout">
@@ -128,21 +120,15 @@ function IncidentDetail({ incident, sent }: { incident: Incident; sent: boolean 
           <article className="incident-card">
             <h2>Mô tả sự cố</h2><p className="incident-description">{incident.description}</p>
           </article>
-          <section className="incident-card incident-timeline">
-            <h2>Hoạt động</h2>
-            <div className="incident-event">
-              <span aria-hidden="true">✓</span>
-              <div><strong>Bạn đã gửi yêu cầu</strong><time dateTime={incident.createdAt}>{submittedAt}</time></div>
-            </div>
-          </section>
+          <IncidentTimeline createdAt={incident.createdAt} activity={incident.activity} employee />
         </div>
         <aside className="incident-card">
           <h2>Thông tin yêu cầu</h2>
           <dl>
-            <div><dt>Trạng thái</dt><dd><span className="incident-pill">Mới</span></dd></div>
+            <div><dt>Trạng thái</dt><dd><span className="incident-pill" data-status={incident.status}>{statusLabels[incident.status]}</span></dd></div>
             <div><dt>Nhóm sự cố</dt><dd>{categories[incident.category]}</dd></div>
             <div><dt>Ảnh hưởng</dt><dd>{impacts[incident.impact]}</dd></div>
-            <div><dt>Người xử lý</dt><dd>Chưa phân công</dd></div>
+            <div><dt>Người xử lý</dt><dd>{incident.assignee ?? 'Chưa phân công'}</dd></div>
           </dl>
         </aside>
       </div>
@@ -224,7 +210,7 @@ export function EmployeePortal({ email }: { email: string }) {
               <button key={item.id} type="button" onClick={() => navigate(item.id)}>
                 <span className="incident-code">{ticketCode(item.id)}</span>
                 <span><strong>{item.title}</strong><small>{categories[item.category]}</small></span>
-                <span className="incident-pill">Mới</span>
+                <span className="incident-pill" data-status={item.status}>{statusLabels[item.status]}</span>
                 <time dateTime={item.createdAt}>{dateFormat.format(new Date(item.createdAt))}</time>
               </button>
             ))}

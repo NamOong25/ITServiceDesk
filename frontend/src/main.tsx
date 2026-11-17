@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { createRoot } from 'react-dom/client';
 import { currentAccount, loadWorkspace, signIn, signOut, type Account } from './auth';
 import { EmployeePortal } from './incidents/EmployeePortal';
+import { ItPortal } from './incidents/ItPortal';
 import './style.css';
 
 function Brand() {
@@ -88,7 +89,7 @@ function WorkspacePage({ account, onLogout }: { account: Account; onLogout: () =
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    if (account.role === 'EMPLOYEE') return;
+    if (account.role !== 'MANAGER') return;
     const controller = new AbortController();
     loadWorkspace(account.role, controller.signal).then(
       (workspace) => setTitle(workspace.title),
@@ -112,12 +113,12 @@ function WorkspacePage({ account, onLogout }: { account: Account; onLogout: () =
   }
 
   return (
-    <main className={account.role === 'EMPLOYEE' ? 'workspace employee-workspace' : 'workspace'}>
+    <main className={account.role === 'MANAGER' ? 'workspace' : 'workspace employee-workspace'}>
       <header><Brand /><button className="secondary" type="button" disabled={pending}
         onClick={logout}>{pending ? 'Đang đăng xuất…' : 'Đăng xuất'}</button></header>
-      {account.role === 'EMPLOYEE' ? <>
+      {account.role !== 'MANAGER' ? <>
         {logoutError && <p role="alert" className="form-error employee-logout-error">{logoutError}</p>}
-        <EmployeePortal email={account.email} />
+        {account.role === 'EMPLOYEE' ? <EmployeePortal email={account.email} /> : <ItPortal email={account.email} />}
       </> : <section className="workspace-card">
         {title ? <h1>{title}</h1> : !workspaceError && <p role="status">Đang mở trang làm việc…</p>}
         <p>{account.email}</p>
