@@ -64,3 +64,10 @@ Thông tin kết nối mặc định dành cho máy phát triển. Có thể ghi
 Trong **Hàng đợi IT**, mở một sự cố và xem **Hạn phải phản hồi** cùng **Phản hồi đầu tiên** ở khung thông tin xử lý. Hạn được tính sau 2 giờ làm việc, trong khung 08:00–17:00 từ thứ Hai đến thứ Sáu theo giờ Việt Nam. Một yêu cầu gửi lúc 16:30 thứ Sáu đến hạn lúc 09:30 thứ Hai.
 
 Nhãn **Sắp đến hạn** áp dụng khi còn tối đa 30 phút làm việc. Thời gian còn lại, sớm hoặc muộn hiển thị theo phút làm việc. Gửi ghi chú nội bộ để xác nhận dòng **Phản hồi đầu tiên** vẫn hiện **Chưa có**, rồi gửi phản hồi cho nhân viên và kiểm tra giờ phản hồi xuất hiện. Các phản hồi tiếp theo giữ nguyên mốc đầu tiên.
+
+## Thử luồng xin cấp quyền
+
+1. Dùng tài khoản nhân viên demo. Mở **Yêu cầu cấp quyền → Xin cấp quyền** và nhập phần mềm, quyền cần cấp và lý do.
+2. Dùng tài khoản quản lý demo. Mở **Yêu cầu cần duyệt**, chọn yêu cầu rồi duyệt hoặc từ chối. Khi từ chối, nhập lý do để nhân viên xem lại.
+3. Dùng tài khoản IT demo. Trong **Yêu cầu cấp quyền**, chọn yêu cầu đã duyệt và bấm **Nhận xử lý**. Sau khi cấp quyền trên phần mềm đích, bấm **Xác nhận đã cấp quyền**.
+4. Quay lại tài khoản nhân viên để xem quyết định của quản lý và trạng thái cuối cùng.

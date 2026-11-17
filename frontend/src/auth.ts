@@ -1,23 +1,9 @@
 export type Role = 'EMPLOYEE' | 'IT' | 'MANAGER';
 export type Account = { email: string; role: Role };
-export type Workspace = { title: string };
-
-const workspacePaths: Record<Role, string> = {
-  EMPLOYEE: '/api/workspaces/employee',
-  IT: '/api/workspaces/it',
-  MANAGER: '/api/workspaces/manager',
-};
-
 export async function currentAccount(signal?: AbortSignal): Promise<Account | null> {
   const response = await fetch('/api/auth/me', { signal });
   if (response.status === 401) return null;
   if (!response.ok) throw new Error('Không kết nối được hệ thống. Vui lòng thử lại.');
-  return response.json();
-}
-
-export async function loadWorkspace(role: Role, signal: AbortSignal): Promise<Workspace> {
-  const response = await fetch(workspacePaths[role], { signal });
-  if (!response.ok) throw new Error('Chưa mở được trang làm việc. Vui lòng thử lại.');
   return response.json();
 }
 

@@ -1,0 +1,58 @@
+.workspace-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 14px;
+}
+.workspace-tabs a {
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #334db9;
+  background: #fff;
+  border: 1px solid #dce3f1;
+  font-size: .88rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+.workspace-tabs a[aria-current="page"] { background: #edf0ff; border-color: #d6defa; }
+.access-action { display: inline-block; text-decoration: none; }
+.access-action:focus-visible, .workspace-tabs a:focus-visible, .access-list a:focus-visible {
+  outline: 2px solid #6076dc;
+  outline-offset: 2px;
+}
+.access-fields { margin-top: 0; }
+.access-detail { grid-template-columns: minmax(0, 1fr) minmax(260px, 315px); }
+.employee-main .access-reason { margin-top: 14px; }
+.access-actions { flex-wrap: wrap; }
+.access-reject { color: #9b263f; }
+.access-badge[data-access="PENDING"] { background: #fff0d8; color: #815406; }
+.access-badge[data-access="REJECTED"] { background: #fee8eb; color: #9b263f; }
+.access-badge[data-access="APPROVED"],
+.access-badge[data-access="FULFILLED"] { background: #def3e9; color: #216448; }
+.access-list { margin-top: 14px; }
+.access-list-item {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content max-content;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 6px;
+  color: #16223a;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.access-list-item:hover { background: #f6f8ff; }
+.access-list-item + .access-list-item { border-top: 1px solid var(--incident-border); }
+.access-list-item small { display: block; color: var(--incident-quiet); }
+.access-list-item time { color: var(--incident-quiet); white-space: nowrap; font-size: .79rem; }
+
+@media (max-width: 850px) {
+  .access-detail { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 650px) {
+  .access-list-item { grid-template-columns: minmax(0, 1fr) max-content; }
+  .access-list-item > span:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+  .access-list-item time { grid-column: 1 / -1; }
+  .access-badge { justify-self: start; }
+  .access-list-item .access-badge { justify-self: end; }
+  .employee-main .incident-heading { flex-wrap: wrap; }
+}

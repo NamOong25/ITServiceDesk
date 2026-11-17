@@ -52,6 +52,9 @@ class SecurityConfig {
                         .requestMatchers("/api/workspaces/it").hasRole("IT")
                         .requestMatchers("/api/it/incidents", "/api/it/incidents/**").hasRole("IT")
                         .requestMatchers("/api/workspaces/manager").hasRole("MANAGER")
+                        .requestMatchers("/api/access-requests", "/api/access-requests/**").hasRole("EMPLOYEE")
+                        .requestMatchers("/api/manager/access-requests", "/api/manager/access-requests/**").hasRole("MANAGER")
+                        .requestMatchers("/api/it/access-requests", "/api/it/access-requests/**").hasRole("IT")
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
                         .anyRequest().denyAll())
                 .exceptionHandling(errors ->

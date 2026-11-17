@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { createRoot } from 'react-dom/client';
-import { currentAccount, loadWorkspace, signIn, signOut, type Account } from './auth';
+import { currentAccount, signIn, signOut, type Account } from './auth';
 import { EmployeePortal } from './incidents/EmployeePortal';
 import { ItPortal } from './incidents/ItPortal';
+import { AccessPortal } from './incidents/AccessPortal';
 import './style.css';
 
 function Brand() {
@@ -83,20 +84,11 @@ function Login({ onLogin }: { onLogin: (account: Account) => void }) {
 }
 
 function WorkspacePage({ account, onLogout }: { account: Account; onLogout: () => void }) {
-  const [title, setTitle] = useState('');
-  const [workspaceError, setWorkspaceError] = useState('');
   const [logoutError, setLogoutError] = useState('');
   const [pending, setPending] = useState(false);
-
-  useEffect(() => {
-    if (account.role !== 'MANAGER') return;
-    const controller = new AbortController();
-    loadWorkspace(account.role, controller.signal).then(
-      (workspace) => setTitle(workspace.title),
-      () => { if (!controller.signal.aborted) setWorkspaceError('Chưa mở được trang làm việc. Vui lòng tải lại trang.'); },
-    );
-    return () => controller.abort();
-  }, [account.role]);
+  const hasIncidentWorkspace = account.role !== 'MANAGER';
+  const accessSelected = !hasIncidentWorkspace || location.pathname.startsWith('/access-requests');
+  const incidentUrl = account.role === 'IT' ? '/it/incidents' : '/requests';
 
   async function logout() {
     if (pending) return;
@@ -113,18 +105,18 @@ function WorkspacePage({ account, onLogout }: { account: Account; onLogout: () =
   }
 
   return (
-    <main className={account.role === 'MANAGER' ? 'workspace' : 'workspace employee-workspace'}>
+    <main className="workspace employee-workspace">
       <header><Brand /><button className="secondary" type="button" disabled={pending}
         onClick={logout}>{pending ? 'Đang đăng xuất…' : 'Đăng xuất'}</button></header>
-      {account.role !== 'MANAGER' ? <>
-        {logoutError && <p role="alert" className="form-error employee-logout-error">{logoutError}</p>}
-        {account.role === 'EMPLOYEE' ? <EmployeePortal email={account.email} /> : <ItPortal email={account.email} />}
-      </> : <section className="workspace-card">
-        {title ? <h1>{title}</h1> : !workspaceError && <p role="status">Đang mở trang làm việc…</p>}
-        <p>{account.email}</p>
-        {workspaceError && <p role="alert" className="form-error">{workspaceError}</p>}
-        {logoutError && <p role="alert" className="form-error">{logoutError}</p>}
-      </section>}
+      {hasIncidentWorkspace && <nav className="workspace-tabs" aria-label="Loại yêu cầu">
+        <a href={incidentUrl} aria-current={accessSelected ? undefined : 'page'}>
+          {account.role === 'IT' ? 'Hàng đợi sự cố' : 'Sự cố của tôi'}
+        </a>
+        <a href="/access-requests" aria-current={accessSelected ? 'page' : undefined}>Yêu cầu cấp quyền</a>
+      </nav>}
+      {logoutError && <p role="alert" className="form-error employee-logout-error">{logoutError}</p>}
+      {accessSelected ? <AccessPortal account={account} />
+        : account.role === 'EMPLOYEE' ? <EmployeePortal email={account.email} /> : <ItPortal email={account.email} />}
     </main>
   );
 }

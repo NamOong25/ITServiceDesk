@@ -16,6 +16,13 @@ class DemoAccounts {
             add(db, encoder, "nhanvien@itsd.example", "EMPLOYEE");
             add(db, encoder, "it@itsd.example", "IT");
             add(db, encoder, "quanly@itsd.example", "MANAGER");
+            db.sql("""
+                    update app_user employee set manager_id = manager.id
+                    from app_user manager
+                    where employee.email = 'nhanvien@itsd.example' and employee.role = 'EMPLOYEE'
+                        and employee.demo_account and employee.manager_id is null
+                        and manager.email = 'quanly@itsd.example' and manager.role = 'MANAGER' and manager.demo_account
+                    """).update();
         };
     }
 
