@@ -47,3 +47,7 @@ Mật khẩu demo dùng chung là `DemoItsd-2026!`. Profile `demo` tạo và cho
 Dùng `Ctrl+C` để dừng frontend và backend. Chạy `docker compose down` từ thư mục gốc để dừng PostgreSQL. Dữ liệu local được giữ trong Docker volume.
 
 Thông tin kết nối mặc định dành cho máy phát triển. Có thể ghi đè kết nối backend bằng `ITSD_DB_URL`, `ITSD_DB_USER` và `ITSD_DB_PASSWORD`.
+
+## Thử luồng báo sự cố
+
+Đăng nhập bằng tài khoản nhân viên demo. Chọn **Báo sự cố** trong **Yêu cầu của tôi**, nhập tiêu đề, nhóm sự cố, phạm vi ảnh hưởng và mô tả. Sau khi gửi, trang chi tiết hiển thị mã yêu cầu và trạng thái **Mới**. Bạn có thể tải lại trang chi tiết hoặc quay về danh sách để mở lại yêu cầu.

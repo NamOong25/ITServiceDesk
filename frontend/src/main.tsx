@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { createRoot } from 'react-dom/client';
 import { currentAccount, loadWorkspace, signIn, signOut, type Account } from './auth';
+import { EmployeePortal } from './incidents/EmployeePortal';
 import './style.css';
 
 function Brand() {
@@ -87,6 +88,7 @@ function WorkspacePage({ account, onLogout }: { account: Account; onLogout: () =
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
+    if (account.role === 'EMPLOYEE') return;
     const controller = new AbortController();
     loadWorkspace(account.role, controller.signal).then(
       (workspace) => setTitle(workspace.title),
@@ -110,15 +112,18 @@ function WorkspacePage({ account, onLogout }: { account: Account; onLogout: () =
   }
 
   return (
-    <main className="workspace">
+    <main className={account.role === 'EMPLOYEE' ? 'workspace employee-workspace' : 'workspace'}>
       <header><Brand /><button className="secondary" type="button" disabled={pending}
         onClick={logout}>{pending ? 'Đang đăng xuất…' : 'Đăng xuất'}</button></header>
-      <section className="workspace-card">
+      {account.role === 'EMPLOYEE' ? <>
+        {logoutError && <p role="alert" className="form-error employee-logout-error">{logoutError}</p>}
+        <EmployeePortal email={account.email} />
+      </> : <section className="workspace-card">
         {title ? <h1>{title}</h1> : !workspaceError && <p role="status">Đang mở trang làm việc…</p>}
         <p>{account.email}</p>
         {workspaceError && <p role="alert" className="form-error">{workspaceError}</p>}
         {logoutError && <p role="alert" className="form-error">{logoutError}</p>}
-      </section>
+      </section>}
     </main>
   );
 }
@@ -137,7 +142,7 @@ function App() {
     return () => controller.abort();
   }, [attempt]);
 
-  if (account) return <WorkspacePage account={account} onLogout={() => setAccount(null)} />;
+  if (account) return <WorkspacePage account={account} onLogout={() => { history.replaceState(null, '', '/'); setAccount(null); }} />;
   if (account === null) return <Login onLogin={setAccount} />;
 
   return (
