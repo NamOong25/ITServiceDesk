@@ -79,15 +79,26 @@ export type Activity = {
   createdAt: string;
 };
 
-export type QueueItem = IncidentSummary & {
+type ItTicket = IncidentSummary & {
   impact: keyof typeof impacts;
   requester: string;
   assignee: string | null;
 };
 
+export type ReplySla = {
+  dueAt: string;
+  firstReplyAt: string | null;
+  state: 'PENDING' | 'DUE_SOON' | 'OVERDUE' | 'ON_TIME' | 'LATE';
+  minutes: number;
+  periods: { start: string; end: string }[];
+};
+
+export type QueueItem = ItTicket & { sla: ReplySla };
+
 export type ItDetail = {
-  ticket: QueueItem & { description: string };
+  ticket: ItTicket & { description: string };
   activity: Activity[];
+  sla: ReplySla;
 };
 
 const itPath = '/api/it/incidents';

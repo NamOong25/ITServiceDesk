@@ -9,7 +9,7 @@
 .it-metrics strong { display: block; font-size: 1.55rem; margin-top: 3px; }
 .it-filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(130px, 200px); gap: 12px; margin: 10px 0 14px; }
 .it-table-scroll { overflow-x: auto; }
-.it-list table { border-collapse: collapse; width: 100%; min-width: 630px; font-size: .86rem; text-align: left; }
+.it-list table { border-collapse: collapse; width: 100%; min-width: 740px; font-size: .86rem; text-align: left; }
 .it-list th { color: var(--incident-quiet); background: #f4f7fb; white-space: nowrap; }
 .it-list th, .it-list td { padding: 10px 9px; border-bottom: 1px solid var(--incident-border); }
 .it-list tr:last-child td { border-bottom: 0; }
@@ -59,3 +59,31 @@
   .it-metrics .incident-card { padding: 9px; }
   .it-filters { grid-template-columns: 1fr; gap: 4px; }
 }
+
+.sla-queue time { display: block; font-weight: 750; white-space: nowrap; }
+.sla-queue small { white-space: nowrap; }
+.sla-queue[data-sla="ON_TIME"] time { color: #216448; }
+.sla-queue[data-sla="DUE_SOON"] time { color: #815406; }
+.sla-queue[data-sla="OVERDUE"] time,
+.sla-queue[data-sla="LATE"] time { color: #9b263f; }
+
+.it-sla { margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--incident-border); }
+.it-sla h3 { font-size: .93rem; margin: 0; }
+.sla-badge {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 4px 8px;
+  border-radius: 99px;
+  background: #edf0f7;
+  color: #475977;
+  font-size: .76rem;
+  font-weight: 700;
+}
+[data-sla="ON_TIME"] .sla-badge { color: #216448; background: #def3e9; }
+[data-sla="DUE_SOON"] .sla-badge { color: #815406; background: #fff0d0; }
+[data-sla="OVERDUE"] .sla-badge,
+[data-sla="LATE"] .sla-badge { color: #9b263f; background: #fee8eb; }
+.sla-calculation { margin-top: 10px; font-size: .79rem; color: var(--incident-quiet); }
+.sla-calculation summary { cursor: pointer; font-weight: 650; }
+.employee-main .sla-calculation p { margin-top: 6px; }
+.sla-calculation ul { margin: 6px 0; padding-left: 18px; }

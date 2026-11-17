@@ -1,5 +1,6 @@
 package com.itservicedesk.incident;
 
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -38,8 +39,20 @@ class ItIncidentController {
 
     @GetMapping
     List<QueueItem> queue() {
-        return db.sql("select " + SUMMARY_COLUMNS + FROM_INCIDENTS + "order by i.created_at desc, i.id desc")
-                .query(QueueItem.class)
+        Instant now = Instant.now();
+        String firstReply = """
+                , (select min(a.created_at) from incident_activity a
+                   where a.incident_id = i.id and a.kind = 'PUBLIC_REPLY') as first_reply_at
+                """;
+        return db.sql("select " + SUMMARY_COLUMNS + firstReply + FROM_INCIDENTS
+                        + "order by i.created_at desc, i.id desc")
+                .query((row, index) -> {
+                    OffsetDateTime created = row.getObject("created_at", OffsetDateTime.class);
+                    OffsetDateTime replied = row.getObject("first_reply_at", OffsetDateTime.class);
+                    return new QueueItem(row.getLong("id"), row.getString("title"), row.getString("category"),
+                            row.getString("impact"), row.getString("status"), created, row.getString("requester"),
+                            row.getString("assignee"), FirstReplySla.evaluate(created, replied, now));
+                })
                 .list();
     }
 
@@ -51,7 +64,13 @@ class ItIncidentController {
                 .query(Ticket.class)
                 .optional()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        return new Detail(ticket, IncidentActivity.timeline(db, id, true));
+        List<IncidentActivity> activity = IncidentActivity.timeline(db, id, true);
+        OffsetDateTime firstReply = activity.stream()
+                .filter(event -> "PUBLIC_REPLY".equals(event.kind()))
+                .map(IncidentActivity::createdAt)
+                .findFirst()
+                .orElse(null);
+        return new Detail(ticket, activity, FirstReplySla.evaluate(ticket.createdAt(), firstReply, Instant.now()));
     }
 
     @PostMapping("/{id}/claim")
@@ -159,8 +178,8 @@ class ItIncidentController {
     record PreviousMessage(String kind, String body) {}
     record Handling(String status, String assignee) {}
     record QueueItem(long id, String title, String category, String impact, String status,
-                     OffsetDateTime createdAt, String requester, String assignee) {}
+                     OffsetDateTime createdAt, String requester, String assignee, FirstReplySla sla) {}
     record Ticket(long id, String title, String category, String impact, String status,
                   OffsetDateTime createdAt, String requester, String assignee, String description) {}
-    record Detail(Ticket ticket, List<IncidentActivity> activity) {}
+    record Detail(Ticket ticket, List<IncidentActivity> activity, FirstReplySla sla) {}
 }

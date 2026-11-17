@@ -58,3 +58,9 @@ Thông tin kết nối mặc định dành cho máy phát triển. Có thể ghi
 2. Đăng nhập với tài khoản IT demo ở cửa sổ ẩn danh. Trong **Hàng đợi IT**, tìm mã sự cố rồi mở chi tiết và bấm **Nhận xử lý**.
 3. Gửi một **Phản hồi** và lưu một **Ghi chú nội bộ**. Sau đó bấm **Đánh dấu đã giải quyết**.
 4. Quay lại trang chi tiết của nhân viên và tải lại. Trang hiển thị phản hồi công khai và trạng thái **Đã giải quyết**. Ghi chú nội bộ chỉ hiển thị ở phía IT.
+
+## Kiểm tra hạn phản hồi đầu tiên
+
+Trong **Hàng đợi IT**, mở một sự cố và xem **Hạn phải phản hồi** cùng **Phản hồi đầu tiên** ở khung thông tin xử lý. Hạn được tính sau 2 giờ làm việc, trong khung 08:00–17:00 từ thứ Hai đến thứ Sáu theo giờ Việt Nam. Một yêu cầu gửi lúc 16:30 thứ Sáu đến hạn lúc 09:30 thứ Hai.
+
+Nhãn **Sắp đến hạn** áp dụng khi còn tối đa 30 phút làm việc. Thời gian còn lại, sớm hoặc muộn hiển thị theo phút làm việc. Gửi ghi chú nội bộ để xác nhận dòng **Phản hồi đầu tiên** vẫn hiện **Chưa có**, rồi gửi phản hồi cho nhân viên và kiểm tra giờ phản hồi xuất hiện. Các phản hồi tiếp theo giữ nguyên mốc đầu tiên.

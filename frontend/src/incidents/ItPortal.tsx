@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { categories, dateFormat, getItIncident, impacts, listItIncidents, sendItUpdate,
   statusLabels, ticketCode, type ItDetail, type QueueItem, type IncidentStatus } from './api';
 import { IncidentTimeline } from './IncidentTimeline';
+import { ReplyDeadline } from './ReplyDeadline';
 import './employee.css';
 import './it.css';
 
@@ -27,10 +28,14 @@ function Queue({ items, open }: { items: QueueItem[]; open: (id: number) => void
 
   return <>
     <h1>Hàng đợi IT</h1>
-    <p className="incident-intro">Tiếp nhận và theo dõi sự cố của nhân viên.</p>
+    <p className="incident-intro">Tiếp nhận sự cố và theo dõi hạn phản hồi đầu tiên.</p>
     <div className="it-metrics">
-      {Object.entries(statusLabels).map(([key, label]) => <div className="incident-card" key={key}>
-        <span>{label}</span><strong>{items.filter((item) => item.status === key).length}</strong>
+      {[
+        ['OVERDUE', 'Quá hạn phản hồi'],
+        ['DUE_SOON', 'Sắp đến hạn'],
+        ['ON_TIME', 'Đã phản hồi đúng hạn'],
+      ].map(([key, label]) => <div className="incident-card" key={key}>
+        <span>{label}</span><strong>{items.filter((item) => item.sla.state === key).length}</strong>
       </div>)}
     </div>
     <section className="incident-card it-list">
@@ -51,7 +56,7 @@ function Queue({ items, open }: { items: QueueItem[]; open: (id: number) => void
       {matches.length === 0 ? <p className="incident-intro">{items.length
         ? 'Không có sự cố khớp bộ lọc.' : 'Chưa có sự cố nào.'}</p> : <div className="it-table-scroll">
         <table>
-          <thead><tr><th>Yêu cầu</th><th>Nhóm sự cố</th><th>Ảnh hưởng</th><th>Trạng thái</th><th>Người xử lý</th></tr></thead>
+          <thead><tr><th>Yêu cầu</th><th>Nhóm sự cố</th><th>Ảnh hưởng</th><th>Trạng thái</th><th>Người xử lý</th><th>Hạn phản hồi</th></tr></thead>
           <tbody>{matches.map((item) => <tr key={item.id}>
             <td><button type="button" className="it-ticket-link" onClick={() => open(item.id)}>
               <span className="incident-code">{ticketCode(item.id)}</span><strong>{item.title}</strong>
@@ -60,6 +65,7 @@ function Queue({ items, open }: { items: QueueItem[]; open: (id: number) => void
             <td>{impacts[item.impact]}</td>
             <td><Status status={item.status} /></td>
             <td>{item.assignee ?? 'Chưa phân công'}</td>
+            <td><ReplyDeadline sla={item.sla} /></td>
           </tr>)}</tbody>
         </table>
       </div>}
@@ -170,6 +176,7 @@ function ItIncident({ detail, email, refresh }: { detail: ItDetail; email: strin
           <div><dt>Nhóm sự cố</dt><dd>{categories[ticket.category]}</dd></div>
           <div><dt>Ảnh hưởng</dt><dd>{impacts[ticket.impact]}</dd></div>
         </dl>
+        <ReplyDeadline sla={detail.sla} detailed />
         {ticket.status === 'NEW' && <button className="incident-primary it-side-action" type="button"
           disabled={!!pending} onClick={() => void act('claim')}>{pending === 'claim' ? 'Đang nhận…' : 'Nhận xử lý'}</button>}
         {mine && <button className="secondary it-side-action" type="button" disabled={!!pending}
@@ -208,6 +215,11 @@ export function ItPortal({ email }: { email: string }) {
     }
     return () => controller.abort();
   }, [id, attempt]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setAttempt((current) => current + 1), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   function open(next: number | null) {
     if (next === id) return;

@@ -10,6 +10,7 @@ const labels = {
 export function IncidentTimeline({ createdAt, activity, employee = false }: {
   createdAt: string; activity: Activity[]; employee?: boolean;
 }) {
+  const firstReplyId = activity.find((item) => item.kind === 'PUBLIC_REPLY')?.id;
   return (
     <section className="incident-card incident-timeline">
       <h2>Hoạt động</h2>
@@ -24,7 +25,7 @@ export function IncidentTimeline({ createdAt, activity, employee = false }: {
         <div key={item.id} className={'incident-event' + (item.kind === 'INTERNAL_NOTE' ? ' internal-event' : '')}>
           <span aria-hidden="true">{item.body ? '↳' : '✓'}</span>
           <div>
-            <strong>{labels[item.kind]}</strong>
+            <strong>{item.id === firstReplyId ? 'Phản hồi đầu tiên từ IT' : labels[item.kind]}</strong>
             <div className="incident-actor">{item.actor}</div>
             <time dateTime={item.createdAt}>{dateFormat.format(new Date(item.createdAt))}</time>
             {item.body && <p className="incident-description">{item.body}</p>}
