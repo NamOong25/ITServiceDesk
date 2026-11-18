@@ -18,6 +18,51 @@
 .it-ticket-link { border: 0; color: #16223a; background: none; font: inherit; padding: 0; text-align: left; }
 .it-ticket-link strong, .it-ticket-link .incident-code { display: block; }
 .it-ticket-link:hover strong { color: var(--incident-blue); text-decoration: underline; }
+.it-queue-cards { display: none; }
+
+@media (max-width: 1140px) {
+  .it-queue-table { display: none; }
+  .it-queue-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+    gap: 10px;
+    list-style: none;
+    margin: 0;
+    padding: 0 14px 14px;
+  }
+  .it-queue-card {
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid var(--incident-border);
+    border-radius: 9px;
+    overflow-wrap: anywhere;
+    font-size: .87rem;
+  }
+  .it-queue-card .it-ticket-link {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    overflow-wrap: anywhere;
+  }
+  .it-queue-card .it-ticket-link strong { font-size: .96rem; }
+  .it-queue-card .it-queue-card-meta { margin-top: 5px; color: var(--incident-quiet); }
+  .it-queue-card-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 9px; }
+  .it-queue-card-priority { color: var(--incident-quiet); font-size: .78rem; }
+  .it-queue-card-details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+    margin: 10px 0 0;
+    padding-top: 9px;
+    border-top: 1px solid var(--incident-border);
+  }
+  .it-queue-card-details > :first-child { grid-column: 1 / -1; }
+  .it-queue-card-details dt { color: var(--incident-quiet); font-size: .76rem; }
+  .it-queue-card-details dd { margin: 3px 0 0; }
+  .it-queue-card .sla-queue time, .it-queue-card .sla-queue small { white-space: normal; }
+  .it-queue-card .sla-queue small { display: block; margin-top: 2px; color: var(--incident-quiet); }
+}
+
 .it-detail { grid-template-columns: minmax(0, 1fr) minmax(220px, 280px); }
 .it-side-action { margin-top: 14px; width: 100%; white-space: normal; }
 .incident-card dd { overflow-wrap: anywhere; }

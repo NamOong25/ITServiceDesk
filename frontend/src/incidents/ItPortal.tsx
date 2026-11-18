@@ -24,13 +24,23 @@ function PriorityBadge({ priority }: { priority: IncidentPriority }) {
   return <span className="incident-pill" data-priority={priority}>{priorityLabels[priority]}</span>;
 }
 
-function Queue({ items, open }: { items: QueueItem[]; open: (id: number) => void }) {
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('');
-  const term = search.trim().toLocaleLowerCase('vi-VN');
-  const matches = items.filter((item) => (!filter || filter === item.status) &&
-    (!priorityFilter || priorityFilter === item.priority) &&
+type QueueFilters = { search: string; status: string; priority: string };
+
+function TicketLink({ item, open }: { item: QueueItem; open: (id: number) => void }) {
+  return <button type="button" className="it-ticket-link" onClick={() => open(item.id)}>
+    <span className="incident-code">{ticketCode(item.id)}</span><strong>{item.title}</strong>
+  </button>;
+}
+
+function Queue({ items, open, filters, onFilterChange }: {
+  items: QueueItem[];
+  open: (id: number) => void;
+  filters: QueueFilters;
+  onFilterChange: (filters: QueueFilters) => void;
+}) {
+  const term = filters.search.trim().toLocaleLowerCase('vi-VN');
+  const matches = items.filter((item) => (!filters.status || filters.status === item.status) &&
+    (!filters.priority || filters.priority === item.priority) &&
     [ticketCode(item.id), item.title].some((part) => part.toLocaleLowerCase('vi-VN').includes(term)));
 
   return <>
@@ -54,39 +64,55 @@ function Queue({ items, open }: { items: QueueItem[]; open: (id: number) => void
       <div className="it-filters">
         <div>
           <label htmlFor="it-search">Tìm mã hoặc tiêu đề</label>
-          <input id="it-search" type="search" placeholder="Tìm theo mã hoặc tiêu đề" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input id="it-search" type="search" placeholder="Tìm theo mã hoặc tiêu đề" value={filters.search} onChange={(event) => onFilterChange({ ...filters, search: event.target.value })} />
         </div>
         <div>
           <label htmlFor="it-status">Trạng thái</label>
-          <select id="it-status" value={filter} onChange={(e) => setFilter(e.target.value)}>
+          <select id="it-status" value={filters.status} onChange={(event) => onFilterChange({ ...filters, status: event.target.value })}>
             <option value="">Tất cả trạng thái</option>
             {Object.entries(statusLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
           </select>
         </div>
         <div>
           <label htmlFor="it-priority">Mức ưu tiên</label>
-          <select id="it-priority" value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}>
+          <select id="it-priority" value={filters.priority} onChange={(event) => onFilterChange({ ...filters, priority: event.target.value })}>
             <option value="">Tất cả mức</option>
             {Object.entries(priorityLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
           </select>
         </div>
       </div>
       {matches.length === 0 ? <p className="incident-intro it-empty">{items.length
-        ? 'Không có sự cố khớp bộ lọc.' : 'Chưa có sự cố nào.'}</p> : <div className="it-table-scroll">
-        <table>
-          <thead><tr><th>Yêu cầu</th><th>Mức ưu tiên</th><th>Nhóm sự cố / Ảnh hưởng</th><th>Trạng thái</th><th>Người xử lý</th><th>Hạn / phản hồi đầu tiên</th></tr></thead>
-          <tbody>{matches.map((item) => <tr key={item.id}>
-            <td><button type="button" className="it-ticket-link" onClick={() => open(item.id)}>
-              <span className="incident-code">{ticketCode(item.id)}</span><strong>{item.title}</strong>
-            </button><small>{item.requester}</small></td>
-            <td><PriorityBadge priority={item.priority} /></td>
-            <td>{categories[item.category]}<small>{impacts[item.impact]}</small></td>
-            <td><Status status={item.status} /></td>
-            <td>{item.assignee ?? 'Chưa phân công'}</td>
-            <td><ReplyDeadline sla={item.sla} /></td>
-          </tr>)}</tbody>
-        </table>
-      </div>}
+        ? 'Không có sự cố khớp bộ lọc.' : 'Chưa có sự cố nào.'}</p> : <>
+        <div className="it-table-scroll it-queue-table">
+          <table>
+            <thead><tr><th>Yêu cầu</th><th>Mức ưu tiên</th><th>Nhóm sự cố / Ảnh hưởng</th><th>Trạng thái</th><th>Người xử lý</th><th>Hạn / phản hồi đầu tiên</th></tr></thead>
+            <tbody>{matches.map((item) => <tr key={item.id}>
+              <td><TicketLink item={item} open={open} /><small>{item.requester}</small></td>
+              <td><PriorityBadge priority={item.priority} /></td>
+              <td>{categories[item.category]}<small>{impacts[item.impact]}</small></td>
+              <td><Status status={item.status} /></td>
+              <td>{item.assignee ?? 'Chưa phân công'}</td>
+              <td><ReplyDeadline sla={item.sla} /></td>
+            </tr>)}</tbody>
+          </table>
+        </div>
+        <ul className="it-queue-cards" role="list">
+          {matches.map((item) => <li key={item.id} className="it-queue-card">
+            <TicketLink item={item} open={open} />
+            <p className="it-queue-card-meta">{categories[item.category]} · {impacts[item.impact]}</p>
+            <div className="it-queue-card-badges">
+              <Status status={item.status} />
+              <span className="it-queue-card-priority">Ưu tiên <PriorityBadge priority={item.priority} /></span>
+            </div>
+            <dl className="it-queue-card-details">
+              <div><dt>{item.sla.firstReplyAt ? 'Phản hồi đầu tiên' : 'Hạn phản hồi'}</dt>
+                <dd><ReplyDeadline sla={item.sla} /></dd></div>
+              <div><dt>Người xử lý</dt><dd>{item.assignee ?? 'Chưa phân công'}</dd></div>
+              <div><dt>Người gửi</dt><dd>{item.requester}</dd></div>
+            </dl>
+          </li>)}
+        </ul>
+      </>}
     </section>
   </>;
 }
@@ -232,6 +258,7 @@ function ItIncident({ detail, email, refresh }: { detail: ItDetail; email: strin
 
 export function ItPortal({ email }: { email: string }) {
   const [id, setId] = useState(activeIncident);
+  const [filters, setFilters] = useState<QueueFilters>({ search: '', status: '', priority: '' });
   const [queue, setQueue] = useState<QueueItem[] | null>(null);
   const [detail, setDetail] = useState<ItDetail | null>(null);
   const [error, setError] = useState('');
@@ -275,7 +302,7 @@ export function ItPortal({ email }: { email: string }) {
   return (
     <section className="employee-main">
       {id !== null && <button className="incident-back" type="button" onClick={() => open(null)}>← Hàng đợi IT</button>}
-      {id === null && queue !== null && <Queue items={queue} open={open} />}
+      {id === null && queue !== null && <Queue items={queue} open={open} filters={filters} onFilterChange={setFilters} />}
       {id !== null && detail?.ticket.id === id && <ItIncident key={id} detail={detail} email={email} refresh={refresh} />}
       {error && <div className="incident-card incident-load-status">
         <p className="form-error" role="alert">{error}</p>
