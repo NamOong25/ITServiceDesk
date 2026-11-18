@@ -60,6 +60,7 @@ Thông tin kết nối mặc định dành cho máy phát triển. Có thể ghi
 2. Đăng nhập với tài khoản IT demo ở cửa sổ ẩn danh. Trong **Hàng đợi IT**, tìm mã sự cố rồi mở chi tiết và bấm **Nhận xử lý**.
 3. Gửi một **Phản hồi** và lưu một **Ghi chú nội bộ**. Sau đó bấm **Đánh dấu đã giải quyết**.
 4. Quay lại trang chi tiết của nhân viên và tải lại. Trang hiển thị phản hồi công khai và trạng thái **Đã giải quyết**. Ghi chú nội bộ chỉ hiển thị ở phía IT.
+5. Chọn **Đã khắc phục** để ghi nhận xác nhận trong lịch sử. Nếu lỗi vẫn còn, chọn **Lỗi vẫn còn**, nhập lý do rồi bấm **Gửi và mở lại sự cố**. Sự cố trở về **Đang xử lý** với người phụ trách và mốc phản hồi đầu tiên đã có.
 
 Mức ưu tiên ban đầu dựa theo phạm vi ảnh hưởng. **Nhiều người** là **Cao**, **Một nhóm** là **Trung bình** và **Chỉ mình tôi** là **Thấp**. Người đang phụ trách sự cố có thể đổi mức ưu tiên trong trang chi tiết. Hàng đợi đưa các sự cố đang mở lên trước và xếp theo mức ưu tiên. Trong cùng mức, các sự cố chưa được phản hồi xếp theo hạn gần nhất.
 

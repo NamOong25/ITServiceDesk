@@ -31,7 +31,7 @@ class IncidentSummaryController {
         List<SourceReply> latest = db.sql("""
                 select id, case kind when 'PUBLIC_REPLY' then 'IT' else 'Nhân viên' end as speaker, body
                 from incident_activity
-                where incident_id = :id and kind in ('PUBLIC_REPLY', 'REQUESTER_REPLY')
+                where incident_id = :id and kind in ('PUBLIC_REPLY', 'REQUESTER_REPLY', 'REOPENED')
                 order by id desc
                 limit :limit
                 """)

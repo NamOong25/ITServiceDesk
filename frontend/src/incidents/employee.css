@@ -105,11 +105,35 @@
 }
 .incident-event time,
 .incident-list small { display: block; color: var(--incident-quiet); margin-top: 3px; }
-.incident-event[data-kind="PUBLIC_REPLY"], .incident-event[data-kind="REQUESTER_REPLY"] { align-items: flex-start; }
+.incident-event[data-kind="PUBLIC_REPLY"], .incident-event[data-kind="REQUESTER_REPLY"],
+.incident-event[data-kind="REOPENED"] { align-items: flex-start; }
 .incident-event[data-kind="PUBLIC_REPLY"] > span { background: #e9eeff; color: #374eac; }
 .incident-event .incident-message { padding: 9px 13px; border-radius: 0 9px 9px; background: #f2f5fd; min-width: 0; }
 .incident-event .incident-message .incident-description { margin-top: 5px; }
-.incident-event[data-kind="REQUESTER_REPLY"] .incident-message { background: #ebf6f1; }
+.incident-event[data-kind="REQUESTER_REPLY"] .incident-message,
+.incident-event[data-kind="REOPENED"] .incident-message { background: #ebf6f1; }
+
+.resolution-review { margin-top: 13px; background: #f8fcfa; border-color: #d0e7dc; }
+.resolution-review-title { display: flex; align-items: center; gap: 10px; }
+.resolution-review-title > span {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 33px;
+  height: 33px;
+  border-radius: 9px;
+  background: #def3e9;
+  color: #216448;
+  font-weight: 750;
+}
+.resolution-review p.resolution-review-intro { color: var(--incident-quiet); font-size: .86rem; margin-top: 7px; }
+.resolution-review-actions { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 13px; }
+.resolution-review-actions button[aria-expanded="true"] { background: #e8eeff; border-color: #b9c9ef; }
+.resolution-review-form { border-top: 1px solid #d8e9df; margin-top: 14px; padding-top: 12px; }
+.resolution-review-form label { margin-top: 0; }
+.resolution-review-form textarea { min-height: 64px; }
+.resolution-review-send { display: flex; justify-content: flex-end; margin-top: 8px; }
+.resolution-review button:disabled { opacity: .65; cursor: default; }
 
 .requester-reply {
   margin: 16px -17px -17px;

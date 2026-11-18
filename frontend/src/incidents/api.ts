@@ -64,6 +64,21 @@ export async function replyToIncident(id: number, body: string, submissionKey: s
   return readResponse(response, 'Chưa gửi được phản hồi. Vui lòng thử lại.');
 }
 
+export type ResolutionFeedback = {
+  resolutionId: number;
+  decision: 'CONFIRMED' | 'REOPENED';
+  body: string | null;
+  submissionKey: string;
+};
+
+export async function submitResolutionFeedback(id: number, feedback: ResolutionFeedback): Promise<Incident> {
+  const response = await postWithCsrf('/api/incidents/' + id + '/resolution-feedback', JSON.stringify(feedback));
+  if (response.status === 409) {
+    throw new Error('Kết quả xử lý đã thay đổi. Hãy tải lại sự cố.');
+  }
+  return readResponse(response, 'Chưa ghi nhận được phản hồi. Vui lòng thử lại.');
+}
+
 export const statusLabels = {
   NEW: 'Mới',
   IN_PROGRESS: 'Đang xử lý',
@@ -81,11 +96,15 @@ export function ticketCode(id: number) {
 export type IncidentStatus = keyof typeof statusLabels;
 export type Activity = {
   id: number;
-  kind: 'ASSIGNED' | 'PUBLIC_REPLY' | 'REQUESTER_REPLY' | 'INTERNAL_NOTE' | 'RESOLVED';
+  kind: 'ASSIGNED' | 'PUBLIC_REPLY' | 'REQUESTER_REPLY' | 'INTERNAL_NOTE' | 'RESOLVED' | 'CONFIRMED' | 'REOPENED';
   actor: string;
   body: string | null;
   createdAt: string;
 };
+
+export function isPublicIncidentMessage(kind: Activity['kind']) {
+  return kind === 'PUBLIC_REPLY' || kind === 'REQUESTER_REPLY' || kind === 'REOPENED';
+}
 
 export const priorityLabels = {
   HIGH: 'Cao',

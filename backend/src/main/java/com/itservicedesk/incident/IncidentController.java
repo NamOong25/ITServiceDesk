@@ -2,8 +2,10 @@ package com.itservicedesk.incident;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -64,6 +66,65 @@ class IncidentController {
         if (!IncidentActivity.isMessageReplay(db, id, actor, REQUESTER_REPLY, body, message.submissionKey())) {
             if (!"IN_PROGRESS".equals(incident.status())) throw new ResponseStatusException(HttpStatus.CONFLICT);
             IncidentActivity.addMessage(db, id, actor, REQUESTER_REPLY, body, message.submissionKey());
+        }
+        return withTimeline(incident);
+    }
+
+    @PostMapping("/{id}/resolution-feedback")
+    @Transactional
+    public Incident reviewResolution(Authentication account, @PathVariable long id, @RequestBody ResolutionFeedback feedback) {
+        if (feedback.decision() == null || feedback.submissionKey() == null || feedback.resolutionId() <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
+        boolean reopening = feedback.decision() == ResolutionDecision.REOPENED;
+        String body = reopening ? requiredText(feedback.body(), 4000) : null;
+        if (!reopening && feedback.body() != null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+
+        String actor = account.getName();
+        Incident incident = ownIncident(id, actor, true);
+        var previous = db.sql("""
+                select kind, body, submission_key from incident_activity
+                where incident_id = :id and resolution_id = :resolutionId
+                """)
+                .param("id", id)
+                .param("resolutionId", feedback.resolutionId())
+                .query(StoredResolutionFeedback.class)
+                .optional();
+        if (previous.isPresent()) {
+            var stored = previous.get();
+            if (stored.kind() != feedback.decision() || !stored.submissionKey().equals(feedback.submissionKey())
+                    || !Objects.equals(stored.body(), body)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT);
+            }
+            return withTimeline(incident);
+        }
+
+        long latestResolution = db.sql("select id from incident_activity where incident_id = :id and kind = 'RESOLVED' order by id desc limit 1")
+                .param("id", id)
+                .query(Long.class)
+                .optional()
+                .orElse(0L);
+        if (!"RESOLVED".equals(incident.status()) || latestResolution != feedback.resolutionId()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT);
+        }
+
+        int added = db.sql("""
+                insert into incident_activity (incident_id, actor_id, kind, body, submission_key, resolution_id)
+                select :id, u.id, :kind, :body, :key, :resolutionId from app_user u where u.email = :actor
+                on conflict (incident_id, actor_id, submission_key) do nothing
+                """)
+                .param("id", id)
+                .param("kind", feedback.decision().name())
+                .param("body", body, Types.VARCHAR)
+                .param("key", feedback.submissionKey())
+                .param("resolutionId", feedback.resolutionId())
+                .param("actor", actor)
+                .update();
+        if (added == 0) throw new ResponseStatusException(HttpStatus.CONFLICT);
+
+        if (reopening) {
+            db.sql("update incident set status = 'IN_PROGRESS' where id = :id").param("id", id).update();
+            incident = ownIncident(id, actor, false);
         }
         return withTimeline(incident);
     }
@@ -139,6 +200,9 @@ class IncidentController {
     record Submission(UUID submissionKey, String title, Category category, Impact impact, String description) {}
 
     record Reply(String body, UUID submissionKey) {}
+    enum ResolutionDecision { CONFIRMED, REOPENED }
+    record ResolutionFeedback(long resolutionId, ResolutionDecision decision, String body, UUID submissionKey) {}
+    private record StoredResolutionFeedback(ResolutionDecision kind, String body, UUID submissionKey) {}
     record IncidentSummary(long id, String title, String category, String status, OffsetDateTime createdAt) {}
 
     record Incident(long id, String title, String category, String impact, String description,

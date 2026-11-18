@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { categories, dateFormat, getItIncident, impacts, listItIncidents, priorityLabels, sendItUpdate,
+import { categories, dateFormat, getItIncident, impacts, isPublicIncidentMessage, listItIncidents, priorityLabels, sendItUpdate,
   statusLabels, ticketCode, type IncidentPriority, type IncidentStatus, type ItDetail, type QueueItem } from './api';
 import { IncidentSummary } from './IncidentSummary';
 import { IncidentTimeline } from './IncidentTimeline';
@@ -105,7 +105,7 @@ function ItIncident({ detail, email, refresh }: { detail: ItDetail; email: strin
   const priority = priorityDraft ?? ticket.priority;
   const isNote = kind === 'INTERNAL_NOTE';
   const latestReply = activity.reduce<ItDetail['activity'][number] | undefined>((latest, event) => {
-    if (event.kind !== 'PUBLIC_REPLY' && event.kind !== 'REQUESTER_REPLY') return latest;
+    if (!isPublicIncidentMessage(event.kind)) return latest;
     return !latest || event.id > latest.id ? event : latest;
   }, undefined);
 

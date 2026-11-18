@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { categories, createIncident, dateFormat, getIncident, impacts, listIncidents, replyToIncident, statusLabels, ticketCode,
   type Draft, type Incident, type IncidentSummary } from './api';
 import { IncidentTimeline } from './IncidentTimeline';
+import { ResolutionReview } from './ResolutionReview';
 import './employee.css';
 
 type Screen = 'list' | 'new' | number;
@@ -165,6 +166,12 @@ function RequesterReplyForm({ id, onReply }: { id: number; onReply: (incident: I
 function IncidentDetail({ incident, sent, onReply }: {
   incident: Incident; sent: boolean; onReply: (incident: Incident) => void;
 }) {
+  const resolution = incident.status === 'RESOLVED'
+    ? incident.activity.filter((event) => event.kind === 'RESOLVED').at(-1)
+    : undefined;
+  const confirmed = !!resolution && incident.activity.some((event) =>
+    event.kind === 'CONFIRMED' && event.id > resolution.id);
+
   return (
     <>
       <div className="incident-heading">
@@ -177,6 +184,8 @@ function IncidentDetail({ incident, sent, onReply }: {
           <article className="incident-card">
             <h2>Mô tả sự cố</h2><p className="incident-description">{incident.description}</p>
           </article>
+          {resolution && <ResolutionReview key={resolution.id} incidentId={incident.id} resolution={resolution}
+            confirmed={confirmed} onReview={onReply} />}
           <IncidentTimeline createdAt={incident.createdAt} activity={incident.activity} employee>
             {incident.status === 'IN_PROGRESS' && <RequesterReplyForm id={incident.id} onReply={onReply} />}
           </IncidentTimeline>

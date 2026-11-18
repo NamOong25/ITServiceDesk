@@ -1,13 +1,21 @@
 import type { ReactNode } from 'react';
-import { dateFormat, type Activity } from './api';
+import { dateFormat, isPublicIncidentMessage, type Activity } from './api';
 
 const labels = {
   ASSIGNED: 'Đã nhận xử lý',
   PUBLIC_REPLY: 'Phản hồi từ IT',
   REQUESTER_REPLY: 'Phản hồi từ nhân viên',
   INTERNAL_NOTE: 'Ghi chú nội bộ',
-  RESOLVED: 'Đã giải quyết',
+  RESOLVED: 'IT đã đánh dấu sự cố là đã giải quyết',
+  CONFIRMED: 'Nhân viên xác nhận đã khắc phục',
+  REOPENED: 'Nhân viên đã mở lại sự cố',
 };
+
+const requesterLabels = {
+  REQUESTER_REPLY: 'Bạn đã phản hồi',
+  CONFIRMED: 'Bạn đã xác nhận khắc phục',
+  REOPENED: 'Bạn đã mở lại sự cố',
+} as const;
 
 export function IncidentTimeline({ createdAt, activity, employee = false, children }: {
   createdAt: string; activity: Activity[]; employee?: boolean; children?: ReactNode;
@@ -24,15 +32,16 @@ export function IncidentTimeline({ createdAt, activity, employee = false, childr
         </div>
       </div>
       {activity.map((item) => {
-        const publicMessage = item.kind === 'PUBLIC_REPLY' || item.kind === 'REQUESTER_REPLY';
+        const { kind } = item;
+        const fromRequester = kind === 'REQUESTER_REPLY' || kind === 'CONFIRMED' || kind === 'REOPENED';
         const label = item.id === firstReplyId ? 'Phản hồi đầu tiên từ IT'
-          : item.kind === 'REQUESTER_REPLY' && employee ? 'Bạn đã phản hồi' : labels[item.kind];
+          : fromRequester && employee ? requesterLabels[kind] : labels[kind];
 
         return <div key={item.id} className="incident-event" data-kind={item.kind}>
           <span aria-hidden="true">{item.body ? '↳' : '✓'}</span>
-          <div className={publicMessage ? 'incident-message' : undefined}>
+          <div className={isPublicIncidentMessage(item.kind) ? 'incident-message' : undefined}>
             <strong>{label}</strong>
-            {!(employee && item.kind === 'REQUESTER_REPLY') && <div className="incident-actor">{item.actor}</div>}
+            {!(employee && fromRequester) && <div className="incident-actor">{item.actor}</div>}
             <time dateTime={item.createdAt}>{dateFormat.format(new Date(item.createdAt))}</time>
             {item.body && <p className="incident-description">{item.body}</p>}
           </div>
