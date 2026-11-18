@@ -2,6 +2,7 @@ package com.itservicedesk.incident;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -28,8 +29,19 @@ class ItIncidentController {
             """;
     private static final String SUMMARY_COLUMNS = """
             i.id, i.title, i.category, i.impact, i.status, i.created_at,
-            requester.email as requester, handler.email as assignee
+            requester.email as requester, handler.email as assignee,
+            coalesce(i.priority_override, case i.impact
+                when 'MANY_USERS' then 'HIGH'
+                when 'TEAM' then 'MEDIUM'
+                else 'LOW'
+            end) as priority
             """;
+
+    private static final Comparator<QueueItem> QUEUE_ORDER = Comparator.comparing(QueueItem::resolved)
+            .thenComparing(QueueItem::priority)
+            .thenComparing(QueueItem::unansweredDueAt, Comparator.nullsLast(Comparator.naturalOrder()))
+            .thenComparing(QueueItem::createdAt, Comparator.reverseOrder())
+            .thenComparing(QueueItem::id, Comparator.reverseOrder());
 
     private final JdbcClient db;
 
@@ -41,16 +53,18 @@ class ItIncidentController {
     List<QueueItem> queue() {
         Instant now = Instant.now();
         String firstReply = ", " + IncidentActivity.FIRST_PUBLIC_REPLY + " as first_reply_at ";
-        return db.sql("select " + SUMMARY_COLUMNS + firstReply + FROM_INCIDENTS
-                        + "order by i.created_at desc, i.id desc")
+        return db.sql("select " + SUMMARY_COLUMNS + firstReply + FROM_INCIDENTS)
                 .query((row, index) -> {
                     OffsetDateTime created = row.getObject("created_at", OffsetDateTime.class);
                     OffsetDateTime replied = row.getObject("first_reply_at", OffsetDateTime.class);
                     return new QueueItem(row.getLong("id"), row.getString("title"), row.getString("category"),
                             row.getString("impact"), row.getString("status"), created, row.getString("requester"),
-                            row.getString("assignee"), FirstReplySla.evaluate(created, replied, now));
+                            row.getString("assignee"), Priority.valueOf(row.getString("priority")),
+                            FirstReplySla.evaluate(created, replied, now));
                 })
-                .list();
+                .list().stream()
+                .sorted(QUEUE_ORDER)
+                .toList();
     }
 
     @GetMapping("/{id}")
@@ -102,6 +116,18 @@ class ItIncidentController {
         recordTransition(id, actor, "RESOLVED");
     }
 
+    @PostMapping("/{id}/priority")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Transactional
+    public void updatePriority(@PathVariable long id, Authentication account, @RequestBody PriorityUpdate update) {
+        if (update.priority() == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        requireHandler(lockIncident(id), account.getName());
+        db.sql("update incident set priority_override = :priority where id = :id")
+                .param("priority", update.priority().name())
+                .param("id", id)
+                .update();
+    }
+
     @PostMapping("/{id}/messages")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Transactional
@@ -150,13 +176,18 @@ class ItIncidentController {
         if (!valid) throw new ResponseStatusException(HttpStatus.CONFLICT);
     }
 
+    enum Priority { HIGH, MEDIUM, LOW }
     enum MessageKind { PUBLIC_REPLY, INTERNAL_NOTE }
+    record PriorityUpdate(Priority priority) {}
     record Message(MessageKind kind, String body, UUID submissionKey) {}
     record Handling(String status, String assignee) {}
     record QueueItem(long id, String title, String category, String impact, String status,
-                     OffsetDateTime createdAt, String requester, String assignee, FirstReplySla sla) {}
+                     OffsetDateTime createdAt, String requester, String assignee, Priority priority, FirstReplySla sla) {
+        boolean resolved() { return "RESOLVED".equals(status); }
+        Instant unansweredDueAt() { return sla.firstReplyAt() == null ? sla.dueAt() : null; }
+    }
     record Ticket(long id, String title, String category, String impact, String status,
-                  OffsetDateTime createdAt, String requester, String assignee, String description) {}
+                  OffsetDateTime createdAt, String requester, String assignee, Priority priority, String description) {}
     record Detail(Ticket ticket, List<IncidentActivity> activity, FirstReplySla sla,
                   SavedIncidentSummary savedSummary) {}
 }

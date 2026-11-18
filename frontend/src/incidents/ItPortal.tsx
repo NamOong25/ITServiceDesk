@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { categories, dateFormat, getItIncident, impacts, listItIncidents, sendItUpdate,
-  statusLabels, ticketCode, type ItDetail, type QueueItem, type IncidentStatus } from './api';
+import { categories, dateFormat, getItIncident, impacts, listItIncidents, priorityLabels, sendItUpdate,
+  statusLabels, ticketCode, type IncidentPriority, type IncidentStatus, type ItDetail, type QueueItem } from './api';
 import { IncidentSummary } from './IncidentSummary';
 import { IncidentTimeline } from './IncidentTimeline';
 import { ReplyDeadline } from './ReplyDeadline';
@@ -8,7 +8,7 @@ import './employee.css';
 import './it.css';
 
 type MessageKind = 'PUBLIC_REPLY' | 'INTERNAL_NOTE';
-type Action = 'claim' | 'resolve' | 'messages';
+type Action = 'claim' | 'resolve' | 'messages' | 'priority';
 
 function activeIncident() {
   const match = /^\/it\/incidents\/([1-9][0-9]*)$/.exec(window.location.pathname);
@@ -20,11 +20,17 @@ function Status({ status }: { status: IncidentStatus }) {
   return <span className="incident-pill" data-status={status}>{statusLabels[status]}</span>;
 }
 
+function PriorityBadge({ priority }: { priority: IncidentPriority }) {
+  return <span className="incident-pill" data-priority={priority}>{priorityLabels[priority]}</span>;
+}
+
 function Queue({ items, open }: { items: QueueItem[]; open: (id: number) => void }) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('');
   const term = search.trim().toLocaleLowerCase('vi-VN');
   const matches = items.filter((item) => (!filter || filter === item.status) &&
+    (!priorityFilter || priorityFilter === item.priority) &&
     [ticketCode(item.id), item.title].some((part) => part.toLocaleLowerCase('vi-VN').includes(term)));
 
   return <>
@@ -43,7 +49,8 @@ function Queue({ items, open }: { items: QueueItem[]; open: (id: number) => void
     </div>
     <section className="incident-card it-list">
       <div className="it-list-heading"><div><h2>Danh sách sự cố</h2>
-        <p>{items.length} yêu cầu trong hàng đợi</p></div></div>
+        <p>{items.length} yêu cầu trong hàng đợi</p></div>
+        <span className="it-queue-order">Sắp xếp theo mức ưu tiên và hạn phản hồi</span></div>
       <div className="it-filters">
         <div>
           <label htmlFor="it-search">Tìm mã hoặc tiêu đề</label>
@@ -56,15 +63,23 @@ function Queue({ items, open }: { items: QueueItem[]; open: (id: number) => void
             {Object.entries(statusLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
           </select>
         </div>
+        <div>
+          <label htmlFor="it-priority">Mức ưu tiên</label>
+          <select id="it-priority" value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}>
+            <option value="">Tất cả mức</option>
+            {Object.entries(priorityLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+          </select>
+        </div>
       </div>
       {matches.length === 0 ? <p className="incident-intro it-empty">{items.length
         ? 'Không có sự cố khớp bộ lọc.' : 'Chưa có sự cố nào.'}</p> : <div className="it-table-scroll">
         <table>
-          <thead><tr><th>Yêu cầu</th><th>Nhóm sự cố / Ảnh hưởng</th><th>Trạng thái</th><th>Người xử lý</th><th>Hạn / phản hồi đầu tiên</th></tr></thead>
+          <thead><tr><th>Yêu cầu</th><th>Mức ưu tiên</th><th>Nhóm sự cố / Ảnh hưởng</th><th>Trạng thái</th><th>Người xử lý</th><th>Hạn / phản hồi đầu tiên</th></tr></thead>
           <tbody>{matches.map((item) => <tr key={item.id}>
             <td><button type="button" className="it-ticket-link" onClick={() => open(item.id)}>
               <span className="incident-code">{ticketCode(item.id)}</span><strong>{item.title}</strong>
             </button><small>{item.requester}</small></td>
+            <td><PriorityBadge priority={item.priority} /></td>
             <td>{categories[item.category]}<small>{impacts[item.impact]}</small></td>
             <td><Status status={item.status} /></td>
             <td>{item.assignee ?? 'Chưa phân công'}</td>
@@ -80,12 +95,14 @@ function ItIncident({ detail, email, refresh }: { detail: ItDetail; email: strin
   const { ticket, activity, savedSummary } = detail;
   const [kind, setKind] = useState<MessageKind>('PUBLIC_REPLY');
   const [body, setBody] = useState('');
+  const [priorityDraft, setPriorityDraft] = useState<IncidentPriority | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [pending, setPending] = useState<Action | null>(null);
   const submission = useRef<string | null>(null);
   const active = useRef(false);
   const mine = ticket.status === 'IN_PROGRESS' && ticket.assignee === email;
+  const priority = priorityDraft ?? ticket.priority;
   const isNote = kind === 'INTERNAL_NOTE';
   const latestReply = activity.reduce<ItDetail['activity'][number] | undefined>((latest, event) => {
     if (event.kind !== 'PUBLIC_REPLY' && event.kind !== 'REQUESTER_REPLY') return latest;
@@ -106,7 +123,7 @@ function ItIncident({ detail, email, refresh }: { detail: ItDetail; email: strin
   }
 
   async function act(action: Action) {
-    if (pending) return;
+    if (pending || (action === 'priority' && priority === ticket.priority)) return;
     const text = body.trim();
     if (action === 'messages' && !text) {
       setError('Nhập nội dung trước khi gửi.');
@@ -116,18 +133,21 @@ function ItIncident({ detail, email, refresh }: { detail: ItDetail; email: strin
     setError('');
     setMessage('');
     try {
-      const payload = action === 'messages'
-        ? { kind, body: text, submissionKey: submission.current ??= crypto.randomUUID() }
-        : undefined;
-      await sendItUpdate(ticket.id, action, payload);
+      await sendItUpdate(ticket.id, action === 'messages'
+        ? { action, kind, body: text, submissionKey: submission.current ??= crypto.randomUUID() }
+        : action === 'priority' ? { action, priority } : { action });
       if (!active.current) return;
       if (action === 'messages') {
         setBody('');
         submission.current = null;
       }
-      setMessage(action === 'claim' ? 'Bạn đã nhận xử lý sự cố.'
-        : action === 'resolve' ? 'Đã đánh dấu sự cố là đã giải quyết.'
-          : isNote ? 'Đã lưu ghi chú nội bộ.' : 'Đã gửi phản hồi cho nhân viên.');
+      if (action === 'priority') setPriorityDraft(null);
+      setMessage({
+        claim: 'Bạn đã nhận xử lý sự cố.',
+        resolve: 'Đã đánh dấu sự cố là đã giải quyết.',
+        messages: isNote ? 'Đã lưu ghi chú nội bộ.' : 'Đã gửi phản hồi cho nhân viên.',
+        priority: 'Đã lưu mức ưu tiên.',
+      }[action]);
       refresh();
     } catch (failure) {
       if (active.current) setError(failure instanceof TypeError ? 'Mất kết nối. Vui lòng thử lại.'
@@ -183,7 +203,21 @@ function ItIncident({ detail, email, refresh }: { detail: ItDetail; email: strin
           <div><dt>Người xử lý</dt><dd>{ticket.assignee ?? 'Chưa phân công'}</dd></div>
           <div><dt>Nhóm sự cố</dt><dd>{categories[ticket.category]}</dd></div>
           <div><dt>Ảnh hưởng</dt><dd>{impacts[ticket.impact]}</dd></div>
+          <div><dt>Mức ưu tiên hiện tại</dt><dd><PriorityBadge priority={ticket.priority} /></dd></div>
         </dl>
+        {mine && <form className="it-priority-edit" onSubmit={(event) => {
+          event.preventDefault();
+          void act('priority');
+        }}>
+          <label htmlFor="it-edit-priority">Đổi mức ưu tiên</label>
+          <select id="it-edit-priority" value={priority} disabled={!!pending}
+            onChange={(event) => setPriorityDraft(event.target.value as IncidentPriority)}>
+            {Object.entries(priorityLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+          </select>
+          <button className="incident-primary" type="submit" disabled={!!pending || priority === ticket.priority}>
+            {pending === 'priority' ? 'Đang lưu…' : 'Lưu mức ưu tiên'}
+          </button>
+        </form>}
         <ReplyDeadline sla={detail.sla} detailed />
         {ticket.status === 'NEW' && <button className="incident-primary it-side-action" type="button"
           disabled={!!pending} onClick={() => void act('claim')}>{pending === 'claim' ? 'Đang nhận…' : 'Nhận xử lý'}</button>}

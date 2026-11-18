@@ -87,7 +87,16 @@ export type Activity = {
   createdAt: string;
 };
 
+export const priorityLabels = {
+  HIGH: 'Cao',
+  MEDIUM: 'Trung bình',
+  LOW: 'Thấp',
+} as const;
+
+export type IncidentPriority = keyof typeof priorityLabels;
+
 type ItTicket = IncidentSummary & {
+  priority: IncidentPriority;
   impact: keyof typeof impacts;
   requester: string;
   assignee: string | null;
@@ -120,10 +129,14 @@ export async function getItIncident(id: number, signal: AbortSignal): Promise<It
   return readResponse(await fetch(itPath + '/' + id, { signal }), 'Chưa tải được chi tiết sự cố.');
 }
 
-export async function sendItUpdate(id: number, action: 'claim' | 'resolve' | 'messages',
-  payload?: { kind: 'PUBLIC_REPLY' | 'INTERNAL_NOTE'; body: string; submissionKey: string }): Promise<void> {
+type ItUpdate =
+  | { action: 'claim' | 'resolve' }
+  | { action: 'messages'; kind: 'PUBLIC_REPLY' | 'INTERNAL_NOTE'; body: string; submissionKey: string }
+  | { action: 'priority'; priority: IncidentPriority };
+
+export async function sendItUpdate(id: number, { action, ...payload }: ItUpdate): Promise<void> {
   const response = await postWithCsrf(itPath + '/' + id + '/' + action,
-    payload ? JSON.stringify(payload) : undefined);
+    action === 'messages' || action === 'priority' ? JSON.stringify(payload) : undefined);
   if (response.status === 403 || response.status === 409) {
     throw new Error('Sự cố đã đổi trạng thái hoặc người xử lý. Hãy tải lại trang.');
   }

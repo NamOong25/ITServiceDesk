@@ -61,6 +61,8 @@ Thông tin kết nối mặc định dành cho máy phát triển. Có thể ghi
 3. Gửi một **Phản hồi** và lưu một **Ghi chú nội bộ**. Sau đó bấm **Đánh dấu đã giải quyết**.
 4. Quay lại trang chi tiết của nhân viên và tải lại. Trang hiển thị phản hồi công khai và trạng thái **Đã giải quyết**. Ghi chú nội bộ chỉ hiển thị ở phía IT.
 
+Mức ưu tiên ban đầu dựa theo phạm vi ảnh hưởng. **Nhiều người** là **Cao**, **Một nhóm** là **Trung bình** và **Chỉ mình tôi** là **Thấp**. Người đang phụ trách sự cố có thể đổi mức ưu tiên trong trang chi tiết. Hàng đợi đưa các sự cố đang mở lên trước và xếp theo mức ưu tiên. Trong cùng mức, các sự cố chưa được phản hồi xếp theo hạn gần nhất.
+
 ## Kiểm tra hạn phản hồi đầu tiên
 
 Trong **Hàng đợi IT**, mở một sự cố và xem **Hạn phải phản hồi** cùng **Phản hồi đầu tiên** ở khung thông tin xử lý. Hạn được tính sau 2 giờ làm việc, trong khung 08:00–17:00 từ thứ Hai đến thứ Sáu theo giờ Việt Nam. Một yêu cầu gửi lúc 16:30 thứ Sáu đến hạn lúc 09:30 thứ Hai.
