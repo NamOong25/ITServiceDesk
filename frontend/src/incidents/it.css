@@ -108,6 +108,11 @@
   font-size: 1.25rem;
 }
 .ai-summary .ai-summary-title p { margin-top: 4px; color: var(--incident-quiet); font-size: .82rem; }
+.ai-summary-status { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin-top: 14px; }
+.ai-summary-status time { color: var(--incident-quiet); font-size: .82rem; }
+.ai-summary-status .incident-pill { background: #def3e9; color: #216448; }
+.ai-summary-status .incident-pill[data-new-reply="true"] { background: #fff0d6; color: #795509; }
+.ai-summary p.ai-summary-update { margin-top: 7px; color: #795509; font-size: .85rem; }
 .ai-summary-results { display: grid; gap: 10px; margin: 14px 0; overflow-wrap: anywhere; }
 .ai-summary-results > div { padding-left: 11px; border-left: 2px solid #d7e0f8; }
 .ai-summary-results h3 { margin: 0 0 3px; color: #203769; font-size: .88rem; }

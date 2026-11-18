@@ -22,31 +22,34 @@ class IncidentSummaryController {
 
     // The existing /api/it/incidents/** rule restricts generation to the IT role.
     @PostMapping("/api/it/incidents/{id}/summary")
-    Result summarize(@PathVariable long id) {
+    SavedIncidentSummary summarize(@PathVariable long id) {
         String description = db.sql("select description from incident where id = :id")
                 .param("id", id)
                 .query(String.class)
                 .optional()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        List<PublicReply> latest = db.sql("""
-                select case kind when 'PUBLIC_REPLY' then 'IT' else 'Nhân viên' end as speaker, body
+        List<SourceReply> latest = db.sql("""
+                select id, case kind when 'PUBLIC_REPLY' then 'IT' else 'Nhân viên' end as speaker, body
                 from incident_activity
                 where incident_id = :id and kind in ('PUBLIC_REPLY', 'REQUESTER_REPLY')
-                order by created_at desc, id desc
+                order by id desc
                 limit :limit
                 """)
                 .param("id", id)
                 .param("limit", REPLY_LIMIT + 1)
-                .query(PublicReply.class)
+                .query(SourceReply.class)
                 .list();
 
         boolean limitedHistory = latest.size() > REPLY_LIMIT;
-        List<PublicReply> replies = latest.subList(0, Math.min(latest.size(), REPLY_LIMIT)).reversed();
+        long coveredReplyId = latest.isEmpty() ? 0 : latest.getFirst().id();
+        List<PublicReply> replies = latest.subList(0, Math.min(latest.size(), REPLY_LIMIT)).reversed().stream()
+                .map(reply -> new PublicReply(reply.speaker(), reply.body()))
+                .toList();
         var summary = gemini.summarize(new Context(description, replies));
-        return new Result(summary, limitedHistory);
+        return SavedIncidentSummary.save(db, id, summary, limitedHistory, coveredReplyId);
     }
 
     record Context(String description, List<PublicReply> replies) {}
     record PublicReply(String speaker, String body) {}
-    record Result(GeminiIncidentSummary.Summary summary, boolean limitedHistory) {}
+    private record SourceReply(long id, String speaker, String body) {}
 }

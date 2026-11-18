@@ -77,7 +77,7 @@ function Queue({ items, open }: { items: QueueItem[]; open: (id: number) => void
 }
 
 function ItIncident({ detail, email, refresh }: { detail: ItDetail; email: string; refresh: () => void }) {
-  const { ticket, activity } = detail;
+  const { ticket, activity, savedSummary } = detail;
   const [kind, setKind] = useState<MessageKind>('PUBLIC_REPLY');
   const [body, setBody] = useState('');
   const [message, setMessage] = useState('');
@@ -87,6 +87,10 @@ function ItIncident({ detail, email, refresh }: { detail: ItDetail; email: strin
   const active = useRef(false);
   const mine = ticket.status === 'IN_PROGRESS' && ticket.assignee === email;
   const isNote = kind === 'INTERNAL_NOTE';
+  const latestReply = activity.reduce<ItDetail['activity'][number] | undefined>((latest, event) => {
+    if (event.kind !== 'PUBLIC_REPLY' && event.kind !== 'REQUESTER_REPLY') return latest;
+    return !latest || event.id > latest.id ? event : latest;
+  }, undefined);
 
   useEffect(() => {
     active.current = true;
@@ -152,7 +156,7 @@ function ItIncident({ detail, email, refresh }: { detail: ItDetail; email: strin
         <article className="incident-card">
           <h2>Mô tả sự cố</h2><p className="incident-description">{ticket.description}</p>
         </article>
-        <IncidentSummary incidentId={ticket.id} />
+        <IncidentSummary incidentId={ticket.id} saved={savedSummary} latestReply={latestReply} />
         <IncidentTimeline createdAt={ticket.createdAt} activity={activity} />
         {mine && <form className="incident-card it-composer" onSubmit={send}>
           <div className="it-composer-tabs" role="group" aria-label="Loại nội dung">

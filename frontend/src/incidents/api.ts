@@ -107,6 +107,7 @@ export type ItDetail = {
   ticket: ItTicket & { description: string };
   activity: Activity[];
   sla: ReplySla;
+  savedSummary: IncidentSummaryResult | null;
 };
 
 const itPath = '/api/it/incidents';
@@ -133,6 +134,8 @@ export async function sendItUpdate(id: number, action: 'claim' | 'resolve' | 'me
 export type IncidentSummaryResult = {
   summary: { issue: string; attempted: string; outstanding: string };
   limitedHistory: boolean;
+  coveredReplyId: number;
+  generatedAt: string;
 };
 
 export async function generateIncidentSummary(id: number): Promise<IncidentSummaryResult> {

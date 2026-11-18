@@ -67,7 +67,8 @@ class ItIncidentController {
                 .map(IncidentActivity::createdAt)
                 .findFirst()
                 .orElse(null);
-        return new Detail(ticket, activity, FirstReplySla.evaluate(ticket.createdAt(), firstReply, Instant.now()));
+        return new Detail(ticket, activity, FirstReplySla.evaluate(ticket.createdAt(), firstReply, Instant.now()),
+                SavedIncidentSummary.find(db, id).orElse(null));
     }
 
     @PostMapping("/{id}/claim")
@@ -156,5 +157,6 @@ class ItIncidentController {
                      OffsetDateTime createdAt, String requester, String assignee, FirstReplySla sla) {}
     record Ticket(long id, String title, String category, String impact, String status,
                   OffsetDateTime createdAt, String requester, String assignee, String description) {}
-    record Detail(Ticket ticket, List<IncidentActivity> activity, FirstReplySla sla) {}
+    record Detail(Ticket ticket, List<IncidentActivity> activity, FirstReplySla sla,
+                  SavedIncidentSummary savedSummary) {}
 }
