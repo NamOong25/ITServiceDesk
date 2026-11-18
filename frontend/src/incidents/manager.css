@@ -14,13 +14,22 @@
   margin-top: 15px;
   align-items: stretch;
 }
-.manager-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.manager-metrics { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .manager-grid { grid-template-columns: 1.25fr 1fr; align-items: start; }
 .manager-metric { display: flex; align-items: flex-start; gap: 10px; }
-.manager-metric h2 { color: #40536e; font-size: .85rem; line-height: 1.35; }
+.manager-metric h2, .manager-metric-title { display: block; color: #40536e; font-size: .85rem; line-height: 1.35; font-weight: 700; }
 .manager-metric strong { display: block; font-size: 1.65rem; margin-top: 4px; }
 .manager-metric strong small { font-size: .84rem; }
-.manager-metric p { color: #536481; font-size: .78rem; line-height: 1.45; }
+.manager-metric p, .manager-metric-hint { display: block; color: #536481; font-size: .78rem; line-height: 1.45; }
+.manager-metric-filter { font: inherit; text-align: left; color: inherit; cursor: pointer; }
+.manager-metric-filter:hover, .manager-metric-filter[aria-pressed="true"] {
+  border-color: #91a7e5;
+  background: #f2f5ff;
+}
+.manager-metric-filter:focus-visible, .manager-issue-link:focus-visible, .manager-detail-back:focus-visible {
+  outline: 2px solid #6076dc;
+  outline-offset: 3px;
+}
 .manager-indicator {
   display: grid;
   place-items: center;
@@ -57,19 +66,55 @@
 .manager-request-row:hover strong, .manager-link:hover { color: #3150c6; text-decoration: underline; }
 .manager-request-row small { display: block; color: #536481; overflow-wrap: anywhere; }
 .manager-request-row strong { overflow-wrap: anywhere; }
-.manager-overdue { margin-top: 14px; }
-.manager-overdue table { width: 100%; min-width: 565px; margin-top: 10px; border-collapse: collapse; text-align: left; font-size: .86rem; }
-.manager-overdue th, .manager-overdue td { padding: 9px 8px; border-bottom: 1px solid var(--incident-border); }
-.manager-overdue th { color: #536481; background: #f4f7fb; }
-.manager-overdue tbody tr:last-child td { border-bottom: 0; }
-.manager-overdue td { overflow-wrap: anywhere; }
-.manager-overdue td strong, .manager-overdue td small { display: block; }
-.manager-overdue time { color: #9b263f; font-weight: 750; white-space: nowrap; }
+.manager-issues { margin-top: 14px; }
+.manager-issues-heading { flex-wrap: wrap; align-items: center; }
+.manager-issue-list {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  border-top: 1px solid var(--incident-border);
+}
+.manager-issue {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2.2fr);
+  gap: 12px;
+  padding: 12px 0;
+  overflow-wrap: anywhere;
+}
+.manager-issue + .manager-issue { border-top: 1px solid var(--incident-border); }
+.manager-issue-link { display: block; color: inherit; text-decoration: none; font-size: .92rem; }
+.manager-issue-link .incident-code { display: block; }
+.manager-issue-link:hover strong { color: var(--incident-blue); text-decoration: underline; }
+.manager-issue-identity small { display: block; margin-top: 4px; color: var(--incident-quiet); }
+.manager-issue .manager-issue-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin: 0;
+}
+.manager-issue .manager-issue-meta > div { display: block; padding: 0; border: 0; }
+.manager-issue-meta dt { color: var(--incident-quiet); font-size: .77rem; }
+.manager-issue .manager-issue-meta dd { margin: 4px 0 0; text-align: left; font-size: .84rem; }
+.manager-issue-meta time { display: block; margin-top: 3px; color: var(--incident-quiet); font-size: .76rem; }
+.manager-issue-meta dd[data-tone="OVERDUE"], .manager-issue-meta dd[data-tone="LATE"] { color: #9b263f; }
+.manager-issue-meta dd[data-tone="ON_TIME"] { color: #216448; }
+.manager-issue-meta dd[data-tone="PAUSED"], .manager-issue-meta dd[data-tone="DUE_SOON"] { color: #795509; }
+.manager-detail-back { text-decoration: none; width: fit-content; }
 
-@media (max-width: 1000px) {
+@media (max-width: 1250px) {
+  .manager-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 1050px) {
   .manager-grid { grid-template-columns: 1fr; }
+  .manager-issue .manager-issue-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 760px) {
+  .manager-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .manager-issue { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 480px) {
   .manager-metrics { grid-template-columns: 1fr; }
 }

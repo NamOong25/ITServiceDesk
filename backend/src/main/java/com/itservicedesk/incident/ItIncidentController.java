@@ -79,17 +79,13 @@ class ItIncidentController {
                 .optional()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         List<IncidentActivity> activity = IncidentActivity.timeline(db, id, true);
-        OffsetDateTime firstReply = activity.stream()
-                .filter(event -> "PUBLIC_REPLY".equals(event.kind()) || "WAIT_REQUESTED".equals(event.kind()))
-                .map(IncidentActivity::createdAt)
-                .findFirst()
-                .orElse(null);
+        OffsetDateTime firstReply = IncidentActivity.firstReplyAt(activity);
         List<String> transferOptions = isOpenAssignment(ticket.status()) && account.getName().equals(ticket.assignee())
                 ? eligibleRecipients(id, account.getName()).stream().map(Recipient::email).toList()
                 : List.of();
         Instant now = Instant.now();
         return new Detail(ticket, activity, FirstReplySla.evaluate(ticket.createdAt(), firstReply, now),
-                ResolutionSla.evaluate(ticket.impact(), ticket.createdAt(), activity, now),
+                ResolutionSla.fromTimeline(ticket.impact(), ticket.createdAt(), activity, now),
                 SavedIncidentSummary.find(db, id).orElse(null), transferOptions);
     }
 

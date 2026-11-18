@@ -64,3 +64,9 @@ Mở **Cách tính hạn** để xem 30 phút của thứ Sáu và 90 phút củ
 4. IT đánh dấu **Đã giải quyết**. Nếu nhân viên mở lại sự cố, đồng hồ giải quyết tiếp tục từ thời lượng đã dùng.
 
 Thời lượng tính từ lúc gửi sự cố, với các mức Cao 4 giờ, Trung bình 8 giờ và Thấp 16 giờ. Hệ thống dùng mức ưu tiên ban đầu theo phạm vi ảnh hưởng, lịch làm việc 08:00–17:00 từ thứ Hai đến thứ Sáu và giờ Việt Nam.
+
+## 6. Theo dõi sự cố của nhóm
+
+1. Đăng nhập bằng tài khoản quản lý. Ở **Tổng quan nhóm**, chọn **30 ngày qua** rồi bấm từng thẻ **Quá hạn phản hồi đầu tiên**, **Quá hạn giải quyết** và **Chờ nhân viên phản hồi** để lọc danh sách **Sự cố của nhóm**.
+2. Mở một sự cố trong danh sách. Xem người xử lý, lịch sử trao đổi công khai và hai hạn SLA. Bấm **Tổng quan nhóm** để quay về đúng khoảng ngày và bộ lọc.
+3. Để thử bộ lọc chờ, thực hiện bước 2 ở phần 5 trên một sự cố của nhân viên thuộc nhóm. Nếu sự cố đã vượt hạn giải quyết trước khi tạm dừng, nó xuất hiện ở cả bộ lọc chờ và bộ lọc quá hạn.

@@ -14,6 +14,13 @@ record IncidentActivity(long id, String kind, String actor, String body, OffsetD
              where a.incident_id = i.id and a.kind in ('PUBLIC_REPLY', 'WAIT_REQUESTED'))
             """;
 
+    static OffsetDateTime firstReplyAt(List<IncidentActivity> timeline) {
+        return timeline.stream()
+                .filter(event -> "PUBLIC_REPLY".equals(event.kind()) || "WAIT_REQUESTED".equals(event.kind()))
+                .map(IncidentActivity::createdAt)
+                .findFirst().orElse(null);
+    }
+
     // Callers hold the incident row lock so a retry and a new message cannot race.
     static boolean isMessageReplay(JdbcClient db, long id, String actor, String kind, String body, UUID key) {
         return isReplay(db, id, actor, kind, body, null, key);

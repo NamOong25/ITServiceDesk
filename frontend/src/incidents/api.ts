@@ -134,6 +134,7 @@ export type ReplySla = {
 export type ResolutionSla = {
   state: 'ACTIVE' | 'PAUSED' | 'OVERDUE' | 'ON_TIME' | 'LATE';
   targetMinutes: number;
+  breached: boolean;
   usedMinutes: number;
   remainingMinutes: number;
   dueAt: string | null;

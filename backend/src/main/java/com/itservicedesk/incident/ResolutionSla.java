@@ -7,8 +7,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 record ResolutionSla(State state, long targetMinutes, long usedMinutes, long remainingMinutes,
-                     Instant dueAt, Instant resolvedAt) {
-    static ResolutionSla evaluate(String impact, OffsetDateTime createdAt, List<IncidentActivity> timeline, Instant now) {
+                     Instant dueAt, Instant resolvedAt, boolean breached) {
+    static ResolutionSla fromTimeline(String impact, OffsetDateTime createdAt, List<IncidentActivity> timeline, Instant now) {
+        return evaluate(impact, createdAt, timeline.stream()
+                .map(event -> new Milestone(event.kind(), event.createdAt()))
+                .toList(), now);
+    }
+
+    static ResolutionSla evaluate(String impact, OffsetDateTime createdAt, List<Milestone> timeline, Instant now) {
         Duration target = Duration.ofHours(switch (impact) {
             case "MANY_USERS" -> 4;
             case "TEAM" -> 8;
@@ -17,7 +23,7 @@ record ResolutionSla(State state, long targetMinutes, long usedMinutes, long rem
         List<FirstReplySla.WorkPeriod> active = new ArrayList<>();
         Instant started = createdAt.toInstant();
         Instant resolvedAt = null;
-        for (IncidentActivity event : timeline) {
+        for (Milestone event : timeline) {
             Instant at = event.createdAt().toInstant();
             if (at.isBefore(createdAt.toInstant()) || at.isAfter(now)) continue;
             switch (event.kind()) {
@@ -63,12 +69,14 @@ record ResolutionSla(State state, long targetMinutes, long usedMinutes, long rem
         long minutesLeft = exceeded ? 0 : remaining.toMinutes();
         if (!exceeded && !remaining.minusMinutes(minutesLeft).isZero()) minutesLeft++;
         return new ResolutionSla(state, target.toMinutes(), used.toMinutes(), minutesLeft,
-                state == State.PAUSED ? null : dueAt, resolvedAt);
+                state == State.PAUSED ? null : dueAt, resolvedAt, exceeded);
     }
 
     private static Instant endOfBudget(Instant start, Duration remaining) {
         return FirstReplySla.deadlinePeriods(start, remaining).getLast().end();
     }
+
+    record Milestone(String kind, OffsetDateTime createdAt) {}
 
     enum State { ACTIVE, PAUSED, OVERDUE, ON_TIME, LATE }
 }

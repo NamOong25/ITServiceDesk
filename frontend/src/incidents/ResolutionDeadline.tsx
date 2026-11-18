@@ -1,6 +1,6 @@
 import { dateFormat, type ResolutionSla } from './api';
 
-const stateLabels = {
+export const resolutionLabels = {
   ACTIVE: 'Đang tính giờ',
   PAUSED: 'Đang tạm dừng',
   OVERDUE: 'Quá hạn giải quyết',
@@ -18,7 +18,7 @@ export function ResolutionDeadline({ sla }: { sla: ResolutionSla }) {
   const lateMinutes = sla.usedMinutes - sla.targetMinutes;
   return <section className="it-sla" data-sla={sla.state}>
     <h3>Hạn giải quyết</h3>
-    <span className="sla-badge">{stateLabels[sla.state]}</span>
+    <span className="sla-badge">{resolutionLabels[sla.state]}</span>
     <dl>
       <div><dt>Thời lượng theo ưu tiên ban đầu</dt><dd>{duration(sla.targetMinutes)}</dd></div>
       <div><dt>Đã tính</dt><dd>{duration(sla.usedMinutes)}</dd></div>

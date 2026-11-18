@@ -167,12 +167,23 @@ test('IT Service Desk API', { timeout: 60_000 }, async (suite) => {
     assert.equal(paused.resolutionSla.dueAt, null);
     const questions = paused.activity.filter(event => event.kind === 'WAIT_REQUESTED');
     assert.equal(questions.length, 1);
-    assert.equal(paused.sla.firstReplyAt, questions[0].createdAt);
+    assert.equal(Date.parse(paused.sla.firstReplyAt), Date.parse(questions[0].createdAt));
     assert.deepEqual(paused.resolutionSla, (await it.get(request)).resolutionSla);
     const queue = await it.get(itIncidentPath);
     assert.equal(queue.find(item => item.id === created.id).sla.firstReplyAt, paused.sla.firstReplyAt);
     const waiting = await employee.get(customer);
     assert.equal(waiting.status, 'WAITING_CUSTOMER');
+    const managerDetail = await manager.get('/api/manager/incidents/' + created.id);
+    assert.equal(managerDetail.ticket.status, 'WAITING_CUSTOMER');
+    assert.deepEqual(managerDetail.resolutionSla, paused.resolutionSla);
+    assert.equal(managerDetail.sla.firstReplyAt, paused.sla.firstReplyAt);
+    assert.ok(managerDetail.activity.some(event => event.body === ask.body));
+    assert.ok(managerDetail.activity.every(event => event.kind !== 'INTERNAL_NOTE'));
+    const overview = await manager.get('/api/manager/overview?days=90');
+    const waitingRow = overview.issues.find(issue => issue.id === created.id);
+    assert.equal(waitingRow.status, 'WAITING_CUSTOMER');
+    assert.equal(waitingRow.resolutionSla.state, 'PAUSED');
+    assert.equal(waitingRow.replyState, paused.sla.state);
     assert.ok(waiting.activity.some(event => event.body === ask.body));
     assert.ok(waiting.activity.every(event => event.kind !== 'INTERNAL_NOTE'));
     const reply = { body: 'Error code E3.', submissionKey: randomUUID() };
@@ -195,6 +206,9 @@ test('IT Service Desk API', { timeout: 60_000 }, async (suite) => {
     });
     const transferred = await secondIt.get(request);
     assert.equal(transferred.resolutionSla.state, 'PAUSED');
+    const managerAfterHandoff = await manager.get('/api/manager/incidents/' + created.id);
+    assert.equal(managerAfterHandoff.ticket.assignee, 'it2@itsd.example');
+    assert.ok(managerAfterHandoff.activity.every(event => event.kind !== 'TRANSFERRED'));
     await secondIt.post(request + '/priority', 204, { priority: 'HIGH' });
     await secondIt.post(request + '/resolve', 204);
     const resolved = await secondIt.get(request);
@@ -209,6 +223,33 @@ test('IT Service Desk API', { timeout: 60_000 }, async (suite) => {
     assert.equal(reopened.resolutionSla.state, 'ACTIVE');
     assert.ok(reopened.resolutionSla.usedMinutes >= resolved.resolutionSla.usedMinutes);
     assert.equal(reopened.sla.firstReplyAt, paused.sla.firstReplyAt);
+  });
+
+  await suite.test('Manager dashboard separates SLA counters and only exposes team incidents', async () => {
+    const foreign = await otherEmployee.post(incidentPath, 201, {
+      title: 'CI unrelated employee incident', description: 'Outside this manager’s team.',
+      impact: 'TEAM', category: 'DEVICE', submissionKey: randomUUID(),
+    });
+    const route = '/api/manager/incidents/';
+    const overview = await manager.get('/api/manager/overview?days=90');
+    assert.equal(overview.issues.length, overview.totalIncidents);
+    assert.equal(overview.overdueCount, overview.issues.filter(issue => issue.replyState === 'OVERDUE').length);
+    assert.equal(overview.overdueResolutionCount, overview.issues.filter(issue => issue.resolutionOverdue).length);
+    assert.equal(overview.waitingForEmployee, overview.issues.filter(issue => issue.status === 'WAITING_CUSTOMER').length);
+    assert.ok(overview.issues.some(issue => issue.resolutionOverdue && issue.replyState === 'ON_TIME'));
+    assert.ok(overview.issues.every(issue => issue.id !== foreign.id));
+    const owned = overview.issues.find(issue => issue.title.startsWith('[Demo SLA]'));
+    assert.ok(owned);
+    await manager.get(route + foreign.id, 404);
+    await it.get(route + owned.id, 403);
+    await employee.get(route + owned.id, 403);
+    await manager.post(route + owned.id, 403);
+    const detail = await manager.get(route + owned.id);
+    assert.equal(detail.ticket.id, owned.id);
+    assert.equal(detail.sla.state, 'ON_TIME');
+    assert.equal(detail.resolutionSla.state, 'ON_TIME');
+    assert.ok(detail.activity.some(event => event.kind === 'PUBLIC_REPLY'));
+    assert.ok(detail.activity.every(event => event.kind !== 'INTERNAL_NOTE'));
   });
 
   await suite.test('The requester can reopen with the original assignee and first reply', async () => {

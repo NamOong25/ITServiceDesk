@@ -52,6 +52,7 @@ class SecurityConfig {
                         .requestMatchers("/api/workspaces/it").hasRole("IT")
                         .requestMatchers("/api/it/incidents", "/api/it/incidents/**").hasRole("IT")
                         .requestMatchers("/api/workspaces/manager", "/api/manager/overview").hasRole("MANAGER")
+                        .requestMatchers(HttpMethod.GET, "/api/manager/incidents/*").hasRole("MANAGER")
                         .requestMatchers("/api/access-requests", "/api/access-requests/**").hasRole("EMPLOYEE")
                         .requestMatchers("/api/manager/access-requests", "/api/manager/access-requests/**").hasRole("MANAGER")
                         .requestMatchers("/api/it/access-requests", "/api/it/access-requests/**").hasRole("IT")
