@@ -3,6 +3,8 @@ import { categories, createIncident, dateFormat, getIncident, impacts, listIncid
   type Draft, type Incident, type IncidentSummary } from './api';
 import { IncidentTimeline } from './IncidentTimeline';
 import { ResolutionReview } from './ResolutionReview';
+import { getArticle, type Article } from '../knowledge/api';
+import { AttachedArticle } from '../knowledge/KnowledgePortal';
 import './employee.css';
 
 type Screen = 'list' | 'new' | number;
@@ -19,6 +21,12 @@ function IncidentForm({ onCreated, onBack }: {
   onCreated: (incident: Incident) => void; onBack: () => void;
 }) {
   const [draft, setDraft] = useState<Draft>({ title: '', category: '', impact: '', description: '' });
+  const [articleId, setArticleId] = useState(() => {
+    const id = Number(new URLSearchParams(window.location.search).get('article'));
+    return Number.isSafeInteger(id) && id > 0 ? id : null;
+  });
+  const [article, setArticle] = useState<Article | null>(null);
+  const [articleError, setArticleError] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const submissionKey = useRef<string | null>(null);
@@ -30,6 +38,27 @@ function IncidentForm({ onCreated, onBack }: {
     return () => { mounted.current = false; };
   }, []);
 
+  useEffect(() => {
+    if (articleId === null) return;
+    const controller = new AbortController();
+    getArticle<Article>(articleId, false, controller.signal).then((guide) => {
+      if (controller.signal.aborted) return;
+      setArticle(guide);
+      setDraft((current) => current.category ? current : { ...current, category: guide.category });
+    }, () => {
+      if (!controller.signal.aborted) setArticleError(true);
+    });
+    return () => controller.abort();
+  }, [articleId]);
+
+  function detachArticle() {
+    setArticle(null);
+    setArticleId(null);
+    setArticleError(false);
+    submissionKey.current = null;
+    window.history.replaceState(null, '', '/requests/new');
+  }
+
   function update(changes: Partial<Draft>) {
     submissionKey.current = null;
     setDraft((current) => ({ ...current, ...changes }));
@@ -37,7 +66,7 @@ function IncidentForm({ onCreated, onBack }: {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (sending.current) return;
+    if (sending.current || (articleId !== null && !article)) return;
     if (!draft.title.trim() || !draft.description.trim()) {
       setError('Nhập tiêu đề và mô tả sự cố.');
       return;
@@ -47,7 +76,7 @@ function IncidentForm({ onCreated, onBack }: {
     setError('');
     try {
       const key = submissionKey.current ??= crypto.randomUUID();
-      const incident = await createIncident(draft, key);
+      const incident = await createIncident(draft, key, article?.id ?? null);
       if (mounted.current) onCreated(incident);
     } catch (failure) {
       setError(failure instanceof TypeError ? 'Mất kết nối. Bạn có thể thử gửi lại yêu cầu.'
@@ -92,10 +121,19 @@ function IncidentForm({ onCreated, onBack }: {
             <label htmlFor="description">Mô tả sự cố</label>
             <textarea id="description" rows={4} value={draft.description}
               onChange={(e) => update({ description: e.target.value })} required maxLength={4000} />
+            {articleId !== null && <div className="knowledge-attachment">
+              {article ? <><strong>Hướng dẫn đã thử</strong><a href={'/knowledge/' + article.id}>{article.title}</a></>
+                : <span role={articleError ? 'alert' : 'status'}>
+                  {articleError ? 'Chưa tải được bài hướng dẫn đính kèm.' : 'Đang tải bài hướng dẫn…'}
+                </span>}
+              <button type="button" className="secondary" onClick={detachArticle}>Bỏ đính kèm</button>
+            </div>}
             {error && <p className="form-error" role="alert">{error}</p>}
             <div className="incident-actions">
               <button type="button" className="secondary" onClick={onBack}>Hủy</button>
-              <button type="submit" className="incident-primary">{pending ? 'Đang gửi…' : 'Gửi sự cố →'}</button>
+              <button type="submit" className="incident-primary" disabled={articleId !== null && !article}>
+                {pending ? 'Đang gửi…' : 'Gửi sự cố →'}
+              </button>
             </div>
           </fieldset>
         </form>
@@ -183,6 +221,8 @@ function IncidentDetail({ incident, sent, onReply }: {
         <div>
           <article className="incident-card">
             <h2>Mô tả sự cố</h2><p className="incident-description">{incident.description}</p>
+            {incident.knowledgeArticleId && incident.knowledgeArticleTitle &&
+              <AttachedArticle id={incident.knowledgeArticleId} title={incident.knowledgeArticleTitle} />}
           </article>
           {resolution && <ResolutionReview key={resolution.id} incidentId={incident.id} resolution={resolution}
             confirmed={confirmed} onReview={onReply} />}

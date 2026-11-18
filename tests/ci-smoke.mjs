@@ -296,6 +296,52 @@ test('IT Service Desk API', { timeout: 60_000 }, async (suite) => {
     assert.ok((await otherEmployee.get(inbox)).items.length === 0);
   });
 
+  await suite.test('IT publishes a guide and the employee can attach it to a new incident', async () => {
+    const source = await employee.post(incidentPath, 201, {
+      title: 'CI VPN guide source', description: 'Private case context that should stay in the incident.',
+      impact: 'TEAM', category: 'NETWORK', submissionKey: randomUUID(),
+    });
+    const fromIncident = '/api/it/knowledge/from-incident/' + source.id;
+    await employee.post(fromIncident, 403);
+    await it.post(fromIncident, 409);
+    await it.post(itIncidentPath + '/' + source.id + '/claim', 204);
+    await it.post(itIncidentPath + '/' + source.id + '/resolve', 204);
+    const draft = await it.post(fromIncident, 200);
+    assert.equal(draft.body, '');
+    assert.equal(draft.publishedAt, null);
+    assert.equal((await secondIt.post(fromIncident, 200)).id, draft.id);
+    const publicArticle = '/api/knowledge/' + draft.id;
+    await employee.get(publicArticle, 404);
+    assert.ok((await employee.get('/api/knowledge')).every(article => article.id !== draft.id));
+    const report = { title: 'CI VPN issue after following the guide', description: 'Still fails after retry.',
+      impact: 'PERSONAL', category: 'NETWORK', knowledgeArticleId: draft.id, submissionKey: randomUUID() };
+    await employee.post(incidentPath, 400, report);
+    const edit = '/api/it/knowledge/' + draft.id + '/edit';
+    const content = { title: 'Reconnect to the VPN', category: 'NETWORK', body: '1. Disconnect.\n2. Reconnect.',
+      revision: draft.revision, publish: false };
+    await employee.post(edit, 403, content);
+    await it.post(edit, 400, { ...content, body: ' ', publish: true });
+    const saved = await it.post(edit, 200, content);
+    assert.equal(saved.publishedAt, null);
+    await it.post(edit, 409, { ...content, publish: true });
+    await secondIt.post(edit, 200, { ...content, revision: saved.revision, publish: true });
+    const article = await employee.get(publicArticle);
+    assert.equal(article.body, content.body);
+    assert.ok(article.publishedAt);
+    assert.equal(article.sourceIncidentId, undefined);
+    assert.ok((await employee.get('/api/knowledge')).some(item => item.id === draft.id));
+
+    const created = await employee.post(incidentPath, 201, report);
+    assert.equal(created.knowledgeArticleId, draft.id);
+    assert.equal((await employee.post(incidentPath, 201, report)).id, created.id);
+    await employee.post(incidentPath, 409, { ...report, knowledgeArticleId: null });
+    const employeeView = await employee.get(incidentPath + '/' + created.id);
+    assert.equal(employeeView.knowledgeArticleTitle, content.title);
+    const itView = await it.get(itIncidentPath + '/' + created.id);
+    assert.equal(itView.ticket.knowledgeArticleId, draft.id);
+    assert.equal(itView.ticket.knowledgeArticleTitle, content.title);
+  });
+
   await suite.test('Manager dashboard separates SLA counters and only exposes team incidents', async () => {
     const foreign = await otherEmployee.post(incidentPath, 201, {
       title: 'CI unrelated employee incident', description: 'Outside this manager’s team.',

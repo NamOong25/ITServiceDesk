@@ -77,7 +77,9 @@ class ItIncidentController {
     @GetMapping("/{id}")
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public Detail detail(@PathVariable long id, Authentication account) {
-        Ticket ticket = db.sql("select " + SUMMARY_COLUMNS + ", i.description " + FROM_INCIDENTS + "where i.id = :id")
+        Ticket ticket = db.sql("select " + SUMMARY_COLUMNS + ", i.description, i.knowledge_article_id, "
+                + "article.title as knowledge_article_title " + FROM_INCIDENTS
+                + "left join knowledge_article article on article.id = i.knowledge_article_id where i.id = :id")
                 .param("id", id)
                 .query(Ticket.class)
                 .optional()
@@ -249,7 +251,8 @@ class ItIncidentController {
         Instant unansweredDueAt() { return sla.firstReplyAt() == null ? sla.dueAt() : null; }
     }
     record Ticket(long id, String title, String category, String impact, String status,
-                  OffsetDateTime createdAt, String requester, String assignee, Priority priority, String description) {}
+                  OffsetDateTime createdAt, String requester, String assignee, Priority priority, String description,
+                  Long knowledgeArticleId, String knowledgeArticleTitle) {}
     record Detail(Ticket ticket, List<IncidentActivity> activity, FirstReplySla sla, ResolutionSla resolutionSla,
                   SavedIncidentSummary savedSummary, List<String> transferOptions) {}
 }

@@ -32,6 +32,8 @@ export type Incident = IncidentSummary & {
   impact: keyof typeof impacts;
   description: string;
   assignee: string | null;
+  knowledgeArticleId: number | null;
+  knowledgeArticleTitle: string | null;
   activity: Activity[];
 };
 
@@ -51,8 +53,8 @@ export async function getIncident(id: number, signal: AbortSignal): Promise<Inci
   return readResponse(await fetch('/api/incidents/' + id, { signal }), 'Chưa tải được chi tiết yêu cầu.');
 }
 
-export async function createIncident(draft: Draft, submissionKey: string): Promise<Incident> {
-  return readResponse(await postWithCsrf('/api/incidents', JSON.stringify({ ...draft, submissionKey })),
+export async function createIncident(draft: Draft, submissionKey: string, knowledgeArticleId: number | null): Promise<Incident> {
+  return readResponse(await postWithCsrf('/api/incidents', JSON.stringify({ ...draft, submissionKey, knowledgeArticleId })),
     'Chưa gửi được yêu cầu. Vui lòng thử lại.');
 }
 
@@ -144,7 +146,7 @@ export type ResolutionSla = {
 export type QueueItem = ItTicket & { sla: ReplySla };
 
 export type ItDetail = {
-  ticket: ItTicket & { description: string };
+  ticket: ItTicket & { description: string; knowledgeArticleId: number | null; knowledgeArticleTitle: string | null };
   activity: Activity[];
   sla: ReplySla;
   resolutionSla: ResolutionSla;

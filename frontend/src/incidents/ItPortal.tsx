@@ -5,6 +5,7 @@ import { IncidentSummary } from './IncidentSummary';
 import { IncidentTimeline } from './IncidentTimeline';
 import { ReplyDeadline } from './ReplyDeadline';
 import { ResolutionDeadline } from './ResolutionDeadline';
+import { AttachedArticle, DraftArticleButton } from '../knowledge/KnowledgePortal';
 import './employee.css';
 import './it.css';
 
@@ -235,6 +236,8 @@ function ItIncident({ detail, email, refresh, onTransferred }: {
       <div>
         <article className="incident-card">
           <h2>Mô tả sự cố</h2><p className="incident-description">{ticket.description}</p>
+          {ticket.knowledgeArticleId && ticket.knowledgeArticleTitle &&
+            <AttachedArticle id={ticket.knowledgeArticleId} title={ticket.knowledgeArticleTitle} />}
         </article>
         <IncidentSummary incidentId={ticket.id} saved={savedSummary} latestReply={latestReply} />
         <IncidentTimeline createdAt={ticket.createdAt} activity={activity} />
@@ -282,6 +285,7 @@ function ItIncident({ detail, email, refresh, onTransferred }: {
         </form>}
         <ReplyDeadline sla={detail.sla} detailed />
         {detail.resolutionSla && <ResolutionDeadline sla={detail.resolutionSla} />}
+        {ticket.status === 'RESOLVED' && <DraftArticleButton incidentId={ticket.id} />}
         {ticket.status === 'NEW' && <button className="incident-primary it-side-action" type="button"
           disabled={!!pending} onClick={() => void act('claim')}>{pending === 'claim' ? 'Đang nhận…' : 'Nhận xử lý'}</button>}
         {mine && <button className="secondary it-side-action" type="button" disabled={!!pending}

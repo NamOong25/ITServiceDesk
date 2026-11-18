@@ -76,3 +76,10 @@ Thời lượng tính từ lúc gửi sự cố, với các mức Cao 4 giờ, T
 Dùng hai cửa sổ riêng khi thử. Nhân viên tạo một yêu cầu cấp quyền mới. Quản lý mở chuông cạnh **Đăng xuất**, chọn thông báo để mở đúng yêu cầu và duyệt. Khi nhân viên quay lại tab của mình, chuông cập nhật số chưa đọc. Mở thông báo để kiểm tra số chưa đọc giảm đi.
 
 Ở luồng sự cố, IT gửi câu hỏi bằng **Gửi và chờ phản hồi**. Nhân viên nhận thông báo và trả lời. Người đang xử lý sẽ nhận thông báo phản hồi. Có thể thử thêm việc bàn giao sang `it2@itsd.example` và đánh dấu đã giải quyết để xem thông báo tương ứng.
+
+## 8. Kho hướng dẫn
+
+1. Ở cổng IT, mở sự cố đã giải quyết **[Demo SLA] Không kết nối được VPN**. Trong **Thông tin xử lý**, bấm **Soạn bài hướng dẫn**.
+2. Đặt tiêu đề dễ tìm, nhập các bước xử lý rồi **Lưu bản nháp**. Bản nháp chỉ hiển thị trong Kho hướng dẫn của đội IT. Bấm **Xuất bản** khi bài sẵn sàng cho nhân viên.
+3. Đăng nhập bằng tài khoản nhân viên, mở **Kho hướng dẫn** và tìm bài theo tiêu đề hoặc nhóm sự cố. Trong bài, bấm **Báo sự cố** nếu lỗi vẫn còn.
+4. Điền và gửi yêu cầu. Mở sự cố mới bằng tài khoản IT để xem liên kết **Hướng dẫn đã thử** trong phần mô tả.

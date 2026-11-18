@@ -27,10 +27,12 @@ import org.springframework.web.server.ResponseStatusException;
 class IncidentController {
     private static final String REQUESTER_REPLY = "REQUESTER_REPLY";
     private static final String OWN_INCIDENTS = """
-            select i.id, i.title, i.category, i.impact, i.description, i.status, i.created_at, handler.email as assignee
+            select i.id, i.title, i.category, i.impact, i.description, i.status, i.created_at, handler.email as assignee,
+                   i.knowledge_article_id, article.title as knowledge_article_title
             from incident i
             join app_user u on u.id = i.requester_id
             left join app_user handler on handler.id = i.assignee_id
+            left join knowledge_article article on article.id = i.knowledge_article_id
             where u.email = :email
             """;
 
@@ -152,32 +154,42 @@ class IncidentController {
     private Incident withTimeline(Incident incident) {
         return new Incident(incident.id(), incident.title(), incident.category(), incident.impact(),
                 incident.description(), incident.status(), incident.createdAt(), incident.assignee(),
+                incident.knowledgeArticleId(), incident.knowledgeArticleTitle(),
                 IncidentActivity.timeline(db, incident.id(), false));
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    Incident create(Authentication account, @RequestBody Submission submission) {
+    @Transactional
+    public Incident create(Authentication account, @RequestBody Submission submission) {
         if (submission.submissionKey() == null || submission.category() == null || submission.impact() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
 
         String title = requiredText(submission.title(), 120);
         String description = requiredText(submission.description(), 4000);
+        Long articleId = submission.knowledgeArticleId();
+        if (articleId != null && !db.sql("select exists (select 1 from knowledge_article where id = :id and published_at is not null)")
+                .param("id", articleId).query(Boolean.class).single()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
         Incident incident = db.sql("""
-                insert into incident (requester_id, submission_key, title, category, impact, description)
-                select u.id, :submissionKey, :title, :category, :impact, :description
+                insert into incident (requester_id, submission_key, title, category, impact, description, knowledge_article_id)
+                select u.id, :submissionKey, :title, :category, :impact, :description, :article
                 from app_user u where u.email = :email
                 on conflict (requester_id, submission_key)
                 do update set submission_key = excluded.submission_key
                 returning id, title, category, impact, description, status, created_at,
-                    (select email from app_user where id = incident.assignee_id) as assignee
+                    (select email from app_user where id = incident.assignee_id) as assignee,
+                    knowledge_article_id,
+                    (select title from knowledge_article where id = incident.knowledge_article_id) as knowledge_article_title
                 """)
                 .param("email", account.getName())
                 .param("submissionKey", submission.submissionKey())
                 .param("title", title)
                 .param("category", submission.category().name())
                 .param("impact", submission.impact().name())
+                .param("article", articleId, Types.BIGINT)
                 .param("description", description)
                 .query(IncidentController::readIncident)
                 .optional()
@@ -185,7 +197,8 @@ class IncidentController {
 
         if (!incident.title().equals(title) || !incident.description().equals(description)
                 || !incident.category().equals(submission.category().name())
-                || !incident.impact().equals(submission.impact().name())) {
+                || !incident.impact().equals(submission.impact().name())
+                || !Objects.equals(incident.knowledgeArticleId(), articleId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT);
         }
         return incident;
@@ -194,7 +207,8 @@ class IncidentController {
     private static Incident readIncident(ResultSet row, int index) throws SQLException {
         return new Incident(row.getLong("id"), row.getString("title"), row.getString("category"),
                 row.getString("impact"), row.getString("description"), row.getString("status"),
-                row.getObject("created_at", OffsetDateTime.class), row.getString("assignee"), List.of());
+                row.getObject("created_at", OffsetDateTime.class), row.getString("assignee"),
+                row.getObject("knowledge_article_id", Long.class), row.getString("knowledge_article_title"), List.of());
     }
 
     static String requiredText(String value, int maxLength) {
@@ -208,7 +222,8 @@ class IncidentController {
     enum Category { NETWORK, DEVICE, SOFTWARE, OTHER }
     enum Impact { PERSONAL, TEAM, MANY_USERS }
 
-    record Submission(UUID submissionKey, String title, Category category, Impact impact, String description) {}
+    record Submission(UUID submissionKey, String title, Category category, Impact impact, String description,
+                      Long knowledgeArticleId) {}
 
     record Reply(String body, UUID submissionKey) {}
     enum ResolutionDecision { CONFIRMED, REOPENED }
@@ -217,5 +232,6 @@ class IncidentController {
     record IncidentSummary(long id, String title, String category, String status, OffsetDateTime createdAt) {}
 
     record Incident(long id, String title, String category, String impact, String description,
-                    String status, OffsetDateTime createdAt, String assignee, List<IncidentActivity> activity) {}
+                    String status, OffsetDateTime createdAt, String assignee, Long knowledgeArticleId,
+                    String knowledgeArticleTitle, List<IncidentActivity> activity) {}
 }
