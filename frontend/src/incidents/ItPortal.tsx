@@ -236,9 +236,15 @@ function ItIncident({ detail, email, refresh, onTransferred }: {
       <div>
         <article className="incident-card">
           <h2>Mô tả sự cố</h2><p className="incident-description">{ticket.description}</p>
-          {ticket.assetId && <div className="asset-reference">
-            <strong>Thiết bị liên quan</strong>
-            <a href={'/it/assets/' + ticket.assetId}>{ticket.assetCode} · {ticket.assetName} · Xem lịch sử</a>
+          {ticket.assetId && <div className="asset-reference asset-reference--linked">
+            <div className="asset-reference-details">
+              <span className="asset-reference-label">Thiết bị liên quan</span>
+              <strong>{ticket.assetName}</strong>
+              <span className="asset-reference-code">{ticket.assetCode}</span>
+            </div>
+            <a className="asset-history-link" href={'/it/assets/' + ticket.assetId}>
+              Xem lịch sử sự cố <span aria-hidden="true">→</span>
+            </a>
           </div>}
           {ticket.knowledgeArticleId && ticket.knowledgeArticleTitle &&
             <AttachedArticle id={ticket.knowledgeArticleId} title={ticket.knowledgeArticleTitle} />}
