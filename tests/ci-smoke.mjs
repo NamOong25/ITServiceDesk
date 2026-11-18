@@ -342,6 +342,56 @@ test('IT Service Desk API', { timeout: 60_000 }, async (suite) => {
     assert.equal(itView.ticket.knowledgeArticleTitle, content.title);
   });
 
+  await suite.test('Only the assigned employee can attach a device, and IT can browse its incident history', async () => {
+    const root = '/api/it/assets';
+    const mine = '/api/assets/mine';
+    const staff = await it.get(root + '/assignees');
+    const owner = staff.find(person => person.email === 'nhanvien@itsd.example');
+    const other = staff.find(person => person.email === 'ci-observer@itsd.example');
+    assert.ok(owner && other);
+    const seed = (await it.get(root)).find(asset => asset.code === 'DEMO-LT-01');
+    assert.ok(seed);
+    assert.ok((await it.get(root + '/' + seed.id)).history.some(issue => issue.title.includes('pin')));
+
+    const draft = { code: 'ci-laptop-01', name: 'CI Laptop', kind: 'LAPTOP',
+      status: 'IN_USE', assignedToId: owner.id };
+    await employee.post(root, 403, draft);
+    await it.post(root, 400, { ...draft, assignedToId: null });
+    const asset = await it.post(root, 201, draft);
+    assert.equal(asset.code, 'CI-LAPTOP-01');
+    await it.post(root, 409, draft);
+    await employee.get(root + '/' + asset.id, 403);
+    await manager.get(root + '/' + asset.id, 403);
+    await it.get(mine, 403);
+    assert.ok((await employee.get(mine)).some(item => item.id === asset.id));
+    assert.ok((await otherEmployee.get(mine)).every(item => item.id !== asset.id));
+
+    const report = { title: 'CI connected laptop power issue', description: 'The laptop shuts down.',
+      impact: 'PERSONAL', category: 'DEVICE', assetId: asset.id, submissionKey: randomUUID() };
+    await otherEmployee.post(incidentPath, 400, report);
+    const created = await employee.post(incidentPath, 201, report);
+    assert.equal(created.assetCode, asset.code);
+    const itDetail = await it.get(itIncidentPath + '/' + created.id);
+    assert.equal(itDetail.ticket.assetId, asset.id);
+    const edit = root + '/' + asset.id + '/edit';
+    const reassigned = await secondIt.post(edit, 200, { ...draft, assignedToId: other.id, revision: asset.revision });
+    assert.equal(reassigned.assignee, other.email);
+    await it.post(edit, 409, { ...draft, revision: asset.revision });
+    assert.ok((await employee.get(mine)).every(item => item.id !== asset.id));
+    assert.ok((await otherEmployee.get(mine)).some(item => item.id === asset.id));
+    await employee.post(incidentPath, 400, { ...report, submissionKey: randomUUID() });
+    assert.equal((await employee.post(incidentPath, 201, report)).id, created.id);
+    assert.equal((await employee.get(incidentPath + '/' + created.id)).assetId, asset.id);
+    const second = await otherEmployee.post(incidentPath, 201, { ...report, submissionKey: randomUUID() });
+    const history = await it.get(root + '/' + asset.id);
+    assert.equal(history.asset.incidentCount, 2);
+    assert.deepEqual(history.history.map(issue => issue.id), [second.id, created.id]);
+
+    await it.post(edit, 200, { ...draft, status: 'MAINTENANCE', assignedToId: null, revision: reassigned.revision });
+    assert.ok((await otherEmployee.get(mine)).every(item => item.id !== asset.id));
+    assert.equal((await it.get(root + '/' + asset.id)).history.length, 2);
+  });
+
   await suite.test('Manager dashboard separates SLA counters and only exposes team incidents', async () => {
     const foreign = await otherEmployee.post(incidentPath, 201, {
       title: 'CI unrelated employee incident', description: 'Outside this manager’s team.',

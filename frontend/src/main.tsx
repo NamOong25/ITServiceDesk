@@ -7,6 +7,7 @@ import { AccessPortal } from './incidents/AccessPortal';
 import { ManagerOverview } from './incidents/ManagerOverview';
 import { Notifications } from './notifications/Notifications';
 import { KnowledgePortal } from './knowledge/KnowledgePortal';
+import { AssetPortal } from './assets/AssetPortal';
 import './style.css';
 import './workspace.css';
 
@@ -91,6 +92,8 @@ function WorkspacePage({ account, onLogout }: { account: Account; onLogout: () =
   const [logoutError, setLogoutError] = useState('');
   const [pending, setPending] = useState(false);
   const accessSelected = location.pathname.startsWith('/access-requests');
+  const assetsAvailable = account.role === 'IT';
+  const assetsSelected = assetsAvailable && /^\/it\/assets(?:\/|$)/.test(location.pathname);
   const knowledgeAvailable = account.role !== 'MANAGER';
   const knowledgeSelected = knowledgeAvailable && /^\/knowledge(?:\/|$)/.test(location.pathname);
   const navigation = {
@@ -122,12 +125,15 @@ function WorkspacePage({ account, onLogout }: { account: Account; onLogout: () =
         <Brand />
         <p className="workspace-nav-title">{navigation.title}</p>
         <nav aria-label="Cổng làm việc">
-          <a href={navigation.href} aria-current={accessSelected || knowledgeSelected ? undefined : 'page'}>
+          <a href={navigation.href} aria-current={accessSelected || knowledgeSelected || assetsSelected ? undefined : 'page'}>
             <span aria-hidden="true">{navigation.icon}</span>{navigation.primary}
           </a>
           <a href="/access-requests" aria-current={accessSelected ? 'page' : undefined}>
             <span aria-hidden="true">◇</span>{navigation.access}
           </a>
+          {assetsAvailable && <a href="/it/assets" aria-current={assetsSelected ? 'page' : undefined}>
+            <span aria-hidden="true">▣</span>Thiết bị
+          </a>}
           {knowledgeAvailable && <a href="/knowledge" aria-current={knowledgeSelected ? 'page' : undefined}>
             <span aria-hidden="true">▤</span>Kho hướng dẫn
           </a>}
@@ -140,7 +146,7 @@ function WorkspacePage({ account, onLogout }: { account: Account; onLogout: () =
       <div className="workspace-page">
         <header className="workspace-toolbar">
           <div>{navigation.title} <span aria-hidden="true">/</span>
-            <strong>{knowledgeSelected ? "Kho hướng dẫn" : accessSelected ? navigation.access : navigation.primary}</strong></div>
+            <strong>{assetsSelected ? "Thiết bị" : knowledgeSelected ? "Kho hướng dẫn" : accessSelected ? navigation.access : navigation.primary}</strong></div>
           <div className="workspace-toolbar-actions">
             <Notifications />
             <button className="secondary" type="button" disabled={pending}
@@ -149,7 +155,7 @@ function WorkspacePage({ account, onLogout }: { account: Account; onLogout: () =
         </header>
         <main className="workspace-content">
           {logoutError && <p role="alert" className="form-error">{logoutError}</p>}
-          {knowledgeSelected ? <KnowledgePortal staff={account.role === 'IT'} />
+          {assetsSelected ? <AssetPortal /> : knowledgeSelected ? <KnowledgePortal staff={account.role === 'IT'} />
             : accessSelected ? <AccessPortal account={account} />
             : account.role === 'MANAGER' ? <ManagerOverview />
               : account.role === 'EMPLOYEE' ? <EmployeePortal /> : <ItPortal email={account.email} />}

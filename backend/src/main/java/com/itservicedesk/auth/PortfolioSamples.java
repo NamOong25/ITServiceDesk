@@ -111,6 +111,30 @@ final class PortfolioSamples {
                 new Access("zoom", "Zoom Workplace", "Quyền tổ chức buổi đào tạo nội bộ",
                         "Điều phối buổi hướng dẫn quy trình cho nhân viên mới.", "FULFILLED", 43, null)
         ).forEach(this::addAccess);
+
+        seedAssets();
+    }
+
+    private void seedAssets() {
+        db.sql("""
+                insert into asset (code, name, kind, status, assigned_to_id) values
+                    ('DEMO-LT-01', 'Lenovo ThinkPad T14', 'LAPTOP', 'IN_USE', :employee),
+                    ('DEMO-MN-01', 'Dell UltraSharp 24', 'MONITOR', 'IN_USE', :employee),
+                    ('DEMO-PR-01', 'Máy in nhãn Zebra ZD421', 'PRINTER', 'MAINTENANCE', null),
+                    ('DEMO-PC-01', 'Dell OptiPlex 7010 dự phòng', 'DESKTOP', 'AVAILABLE', null)
+                on conflict (code) do nothing
+                """).param("employee", accounts.employeeId()).update();
+        db.sql("""
+                update incident i set asset_id = a.id
+                from asset a
+                where i.requester_id = :employee and i.asset_id is null and (
+                    (a.code = 'DEMO-LT-01' and i.submission_key in (:battery, :headset))
+                    or (a.code = 'DEMO-MN-01' and i.submission_key = :dock)
+                    or (a.code = 'DEMO-PR-01' and i.submission_key = :printer)
+                )
+                """).param("employee", accounts.employeeId()).param("battery", key("incident", "battery"))
+                .param("headset", key("incident", "headset")).param("dock", key("incident", "dock"))
+                .param("printer", key("incident", "printer")).update();
     }
 
     private void addIncident(Incident sample) {

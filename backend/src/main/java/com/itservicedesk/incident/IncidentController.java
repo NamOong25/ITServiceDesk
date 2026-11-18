@@ -28,11 +28,13 @@ class IncidentController {
     private static final String REQUESTER_REPLY = "REQUESTER_REPLY";
     private static final String OWN_INCIDENTS = """
             select i.id, i.title, i.category, i.impact, i.description, i.status, i.created_at, handler.email as assignee,
-                   i.knowledge_article_id, article.title as knowledge_article_title
+                   i.knowledge_article_id, article.title as knowledge_article_title,
+                   i.asset_id, device.code as asset_code, device.name as asset_name
             from incident i
             join app_user u on u.id = i.requester_id
             left join app_user handler on handler.id = i.assignee_id
             left join knowledge_article article on article.id = i.knowledge_article_id
+            left join asset device on device.id = i.asset_id
             where u.email = :email
             """;
 
@@ -155,6 +157,7 @@ class IncidentController {
         return new Incident(incident.id(), incident.title(), incident.category(), incident.impact(),
                 incident.description(), incident.status(), incident.createdAt(), incident.assignee(),
                 incident.knowledgeArticleId(), incident.knowledgeArticleTitle(),
+                incident.assetId(), incident.assetCode(), incident.assetName(),
                 IncidentActivity.timeline(db, incident.id(), false));
     }
 
@@ -173,32 +176,54 @@ class IncidentController {
                 .param("id", articleId).query(Boolean.class).single()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
+        String email = account.getName();
+        Long assetId = submission.assetId();
+        if (assetId != null && db.sql("""
+                select a.id from asset a join app_user u on u.id = a.assigned_to_id
+                where a.id = :id and a.status = 'IN_USE' and u.email = :email
+                for share of a
+                """).param("id", assetId).param("email", email).query(Long.class).optional().isEmpty()) {
+            // A valid retry can arrive after the device has been reassigned.
+            Incident previous = db.sql(OWN_INCIDENTS + "and i.submission_key = :key")
+                    .param("email", email).param("key", submission.submissionKey())
+                    .query(IncidentController::readIncident).optional()
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST));
+            return validateSubmission(previous, submission, title, description);
+        }
         Incident incident = db.sql("""
-                insert into incident (requester_id, submission_key, title, category, impact, description, knowledge_article_id)
-                select u.id, :submissionKey, :title, :category, :impact, :description, :article
+                insert into incident (requester_id, submission_key, title, category, impact, description, knowledge_article_id, asset_id)
+                select u.id, :submissionKey, :title, :category, :impact, :description, :article, :asset
                 from app_user u where u.email = :email
                 on conflict (requester_id, submission_key)
                 do update set submission_key = excluded.submission_key
                 returning id, title, category, impact, description, status, created_at,
                     (select email from app_user where id = incident.assignee_id) as assignee,
                     knowledge_article_id,
-                    (select title from knowledge_article where id = incident.knowledge_article_id) as knowledge_article_title
+                    (select title from knowledge_article where id = incident.knowledge_article_id) as knowledge_article_title,
+                    asset_id, (select code from asset where id = incident.asset_id) as asset_code,
+                    (select name from asset where id = incident.asset_id) as asset_name
                 """)
-                .param("email", account.getName())
+                .param("email", email)
                 .param("submissionKey", submission.submissionKey())
                 .param("title", title)
                 .param("category", submission.category().name())
                 .param("impact", submission.impact().name())
                 .param("article", articleId, Types.BIGINT)
+                .param("asset", assetId, Types.BIGINT)
                 .param("description", description)
                 .query(IncidentController::readIncident)
                 .optional()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
 
+        return validateSubmission(incident, submission, title, description);
+    }
+
+    private static Incident validateSubmission(Incident incident, Submission submission, String title, String description) {
         if (!incident.title().equals(title) || !incident.description().equals(description)
                 || !incident.category().equals(submission.category().name())
                 || !incident.impact().equals(submission.impact().name())
-                || !Objects.equals(incident.knowledgeArticleId(), articleId)) {
+                || !Objects.equals(incident.knowledgeArticleId(), submission.knowledgeArticleId())
+                || !Objects.equals(incident.assetId(), submission.assetId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT);
         }
         return incident;
@@ -208,7 +233,8 @@ class IncidentController {
         return new Incident(row.getLong("id"), row.getString("title"), row.getString("category"),
                 row.getString("impact"), row.getString("description"), row.getString("status"),
                 row.getObject("created_at", OffsetDateTime.class), row.getString("assignee"),
-                row.getObject("knowledge_article_id", Long.class), row.getString("knowledge_article_title"), List.of());
+                row.getObject("knowledge_article_id", Long.class), row.getString("knowledge_article_title"),
+                row.getObject("asset_id", Long.class), row.getString("asset_code"), row.getString("asset_name"), List.of());
     }
 
     static String requiredText(String value, int maxLength) {
@@ -223,7 +249,7 @@ class IncidentController {
     enum Impact { PERSONAL, TEAM, MANY_USERS }
 
     record Submission(UUID submissionKey, String title, Category category, Impact impact, String description,
-                      Long knowledgeArticleId) {}
+                      Long knowledgeArticleId, Long assetId) {}
 
     record Reply(String body, UUID submissionKey) {}
     enum ResolutionDecision { CONFIRMED, REOPENED }
@@ -233,5 +259,6 @@ class IncidentController {
 
     record Incident(long id, String title, String category, String impact, String description,
                     String status, OffsetDateTime createdAt, String assignee, Long knowledgeArticleId,
-                    String knowledgeArticleTitle, List<IncidentActivity> activity) {}
+                    String knowledgeArticleTitle, Long assetId, String assetCode, String assetName,
+                    List<IncidentActivity> activity) {}
 }

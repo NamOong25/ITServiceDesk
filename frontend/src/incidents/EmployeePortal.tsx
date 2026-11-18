@@ -5,6 +5,7 @@ import { IncidentTimeline } from './IncidentTimeline';
 import { ResolutionReview } from './ResolutionReview';
 import { getArticle, type Article } from '../knowledge/api';
 import { AttachedArticle } from '../knowledge/KnowledgePortal';
+import { listMine, type AssetChoice } from '../assets/api';
 import './employee.css';
 
 type Screen = 'list' | 'new' | number;
@@ -20,7 +21,9 @@ function currentScreen(): Screen {
 function IncidentForm({ onCreated, onBack }: {
   onCreated: (incident: Incident) => void; onBack: () => void;
 }) {
-  const [draft, setDraft] = useState<Draft>({ title: '', category: '', impact: '', description: '' });
+  const [draft, setDraft] = useState<Draft>({ title: '', category: '', impact: '', description: '', assetId: null });
+  const [assets, setAssets] = useState<AssetChoice[]>([]);
+  const [assetError, setAssetError] = useState(false);
   const [articleId, setArticleId] = useState(() => {
     const id = Number(new URLSearchParams(window.location.search).get('article'));
     return Number.isSafeInteger(id) && id > 0 ? id : null;
@@ -50,6 +53,16 @@ function IncidentForm({ onCreated, onBack }: {
     });
     return () => controller.abort();
   }, [articleId]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    listMine(controller.signal).then((rows) => {
+      if (!controller.signal.aborted) setAssets(rows);
+    }, () => {
+      if (!controller.signal.aborted) setAssetError(true);
+    });
+    return () => controller.abort();
+  }, []);
 
   function detachArticle() {
     setArticle(null);
@@ -118,6 +131,15 @@ function IncidentForm({ onCreated, onBack }: {
                 </select>
               </div>
             </div>
+            {assets.length > 0 && <div>
+              <label htmlFor="incident-asset">Thiết bị liên quan (không bắt buộc)</label>
+              <select id="incident-asset" value={draft.assetId ?? ''} onChange={(event) =>
+                update({ assetId: event.target.value ? Number(event.target.value) : null })}>
+                <option value="">Chọn thiết bị</option>
+                {assets.map((asset) => <option key={asset.id} value={asset.id}>{asset.code} · {asset.name}</option>)}
+              </select>
+            </div>}
+            {assetError && <p className="incident-intro" role="status">Chưa tải được danh sách thiết bị được cấp.</p>}
             <label htmlFor="description">Mô tả sự cố</label>
             <textarea id="description" rows={4} value={draft.description}
               onChange={(e) => update({ description: e.target.value })} required maxLength={4000} />
@@ -221,6 +243,9 @@ function IncidentDetail({ incident, sent, onReply }: {
         <div>
           <article className="incident-card">
             <h2>Mô tả sự cố</h2><p className="incident-description">{incident.description}</p>
+            {incident.assetCode && <div className="asset-reference">
+              <strong>Thiết bị liên quan</strong><span>{incident.assetCode} · {incident.assetName}</span>
+            </div>}
             {incident.knowledgeArticleId && incident.knowledgeArticleTitle &&
               <AttachedArticle id={incident.knowledgeArticleId} title={incident.knowledgeArticleTitle} />}
           </article>

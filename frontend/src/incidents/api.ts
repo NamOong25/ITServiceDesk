@@ -18,6 +18,7 @@ export type Draft = {
   category: keyof typeof categories | '';
   impact: keyof typeof impacts | '';
   description: string;
+  assetId: number | null;
 };
 
 export type IncidentSummary = {
@@ -34,6 +35,9 @@ export type Incident = IncidentSummary & {
   assignee: string | null;
   knowledgeArticleId: number | null;
   knowledgeArticleTitle: string | null;
+  assetId: number | null;
+  assetCode: string | null;
+  assetName: string | null;
   activity: Activity[];
 };
 
@@ -146,7 +150,8 @@ export type ResolutionSla = {
 export type QueueItem = ItTicket & { sla: ReplySla };
 
 export type ItDetail = {
-  ticket: ItTicket & { description: string; knowledgeArticleId: number | null; knowledgeArticleTitle: string | null };
+  ticket: ItTicket & Pick<Incident,
+    'description' | 'knowledgeArticleId' | 'knowledgeArticleTitle' | 'assetId' | 'assetCode' | 'assetName'>;
   activity: Activity[];
   sla: ReplySla;
   resolutionSla: ResolutionSla;

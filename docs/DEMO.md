@@ -83,3 +83,10 @@ Dùng hai cửa sổ riêng khi thử. Nhân viên tạo một yêu cầu cấp 
 2. Đặt tiêu đề dễ tìm, nhập các bước xử lý rồi **Lưu bản nháp**. Bản nháp chỉ hiển thị trong Kho hướng dẫn của đội IT. Bấm **Xuất bản** khi bài sẵn sàng cho nhân viên.
 3. Đăng nhập bằng tài khoản nhân viên, mở **Kho hướng dẫn** và tìm bài theo tiêu đề hoặc nhóm sự cố. Trong bài, bấm **Báo sự cố** nếu lỗi vẫn còn.
 4. Điền và gửi yêu cầu. Mở sự cố mới bằng tài khoản IT để xem liên kết **Hướng dẫn đã thử** trong phần mô tả.
+
+## 9. Thiết bị và lịch sử sự cố
+
+1. Đăng nhập IT, vào **Thiết bị** và tìm **DEMO-LT-01**. Trong **Lịch sử sự cố**, mở ca laptop tắt nguồn để xem phản hồi IT về việc thay pin.
+2. Đăng nhập nhân viên demo, mở **Báo sự cố**, chọn **DEMO-LT-01** ở trường **Thiết bị liên quan** và gửi yêu cầu mới.
+3. Dùng tài khoản IT mở yêu cầu vừa tạo. Bấm **Xem lịch sử** ở phần **Thiết bị liên quan** để xem cả yêu cầu mới và lần xử lý trước.
+4. Trong trang thiết bị, thử **Chỉnh sửa** và đổi sang **Bảo trì**. Thiết bị rời danh sách có thể chọn của nhân viên, còn các sự cố trước vẫn truy cập được từ lịch sử.
