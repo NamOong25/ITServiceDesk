@@ -129,3 +129,15 @@ export async function sendItUpdate(id: number, action: 'claim' | 'resolve' | 'me
   if (response.status === 401) throw new Error('Phiên đăng nhập đã hết hạn. Hãy tải lại trang để đăng nhập.');
   if (!response.ok) throw new Error('Chưa cập nhật được sự cố. Vui lòng thử lại.');
 }
+
+export type IncidentSummaryResult = {
+  summary: { issue: string; attempted: string; outstanding: string };
+  limitedHistory: boolean;
+};
+
+export async function generateIncidentSummary(id: number): Promise<IncidentSummaryResult> {
+  const response = await postWithCsrf(itPath + '/' + id + '/summary');
+  if (response.status === 503) throw new Error('Chưa kết nối được Gemini. Kiểm tra API key của backend.');
+  if (response.status === 429) throw new Error('Gemini đã chạm hạn mức. Vui lòng thử lại sau.');
+  return readResponse(response, 'Gemini chưa trả được bản tóm tắt. Vui lòng thử lại.');
+}

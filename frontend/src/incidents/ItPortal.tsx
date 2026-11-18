@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { categories, dateFormat, getItIncident, impacts, listItIncidents, sendItUpdate,
   statusLabels, ticketCode, type ItDetail, type QueueItem, type IncidentStatus } from './api';
+import { IncidentSummary } from './IncidentSummary';
 import { IncidentTimeline } from './IncidentTimeline';
 import { ReplyDeadline } from './ReplyDeadline';
 import './employee.css';
@@ -151,6 +152,7 @@ function ItIncident({ detail, email, refresh }: { detail: ItDetail; email: strin
         <article className="incident-card">
           <h2>Mô tả sự cố</h2><p className="incident-description">{ticket.description}</p>
         </article>
+        <IncidentSummary incidentId={ticket.id} />
         <IncidentTimeline createdAt={ticket.createdAt} activity={activity} />
         {mine && <form className="incident-card it-composer" onSubmit={send}>
           <div className="it-composer-tabs" role="group" aria-label="Loại nội dung">

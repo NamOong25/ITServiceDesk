@@ -87,3 +87,31 @@
 .sla-calculation summary { cursor: pointer; font-weight: 650; }
 .employee-main .sla-calculation p { margin-top: 6px; }
 .sla-calculation ul { margin: 6px 0; padding-left: 18px; }
+
+.ai-summary {
+  margin-top: 13px;
+  border-color: #cbd7f5;
+  background: linear-gradient(140deg, #f2f5ff, #fff 68%);
+}
+.ai-summary-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.ai-summary-header .secondary { background: #fff; }
+.ai-summary-title { display: flex; gap: 10px; align-items: center; }
+.ai-summary-title > span {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #e2e9ff;
+  color: #334db4;
+  font-size: 1.25rem;
+}
+.ai-summary .ai-summary-title p { margin-top: 4px; color: var(--incident-quiet); font-size: .82rem; }
+.ai-summary-results { display: grid; gap: 10px; margin: 14px 0; overflow-wrap: anywhere; }
+.ai-summary-results > div { padding-left: 11px; border-left: 2px solid #d7e0f8; }
+.ai-summary-results h3 { margin: 0 0 3px; color: #203769; font-size: .88rem; }
+.ai-summary-results p { color: #314763; font-size: .9rem; line-height: 1.5; }
+.ai-summary-results p.ai-summary-note,
+.ai-summary footer { color: var(--incident-quiet); font-size: .8rem; }
+.ai-summary footer { margin-top: 12px; padding-top: 10px; border-top: 1px solid #dde5f3; }

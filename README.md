@@ -79,3 +79,16 @@ Nhãn **Sắp đến hạn** áp dụng khi còn tối đa 30 phút làm việc.
 Đăng nhập bằng tài khoản quản lý và mở **Tổng quan**. Bộ lọc 7, 30 hoặc 90 ngày tính các sự cố được gửi trong số ngày lịch đã chọn, tính cả hôm nay theo giờ Việt Nam. Thẻ phản hồi trung bình chỉ tính những sự cố đã có phản hồi công khai đầu tiên, theo phút làm việc và làm tròn đến phút gần nhất.
 
 Thẻ chờ duyệt đếm toàn bộ yêu cầu cấp quyền đang chờ do bạn phụ trách. Trang tổng quan hiển thị tối đa ba yêu cầu chờ lâu nhất và dẫn đến danh sách đầy đủ.
+
+
+## Thử tóm tắt sự cố bằng Gemini
+
+Tạo khóa ở [Google AI Studio](https://aistudio.google.com/api-keys). Dùng dự án Gemini API Free Tier và chỉ thử với dữ liệu mẫu hoặc nội dung đã bỏ thông tin nhạy cảm. Trong cửa sổ CMD chạy backend, đặt biến môi trường trước khi khởi động lại.
+
+```cmd
+cd /d "D:\Video OBS\Portfolio\ITServiceDesk\backend"
+set "GEMINI_API_KEY=THAY_BANG_KHOA_CUA_BAN"
+mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=demo,portfolio
+```
+
+Đăng nhập vai trò IT, mở sự cố mẫu VPN và bấm **Tạo tóm tắt**. Phần này dùng Gemini 3.1 Flash-Lite và chỉ gửi mô tả cùng tối đa 12 phản hồi công khai gần nhất. Kết quả hiện trong trang chi tiết đang mở.
