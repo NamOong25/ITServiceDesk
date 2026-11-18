@@ -59,6 +59,7 @@ test('IT Service Desk API', { timeout: 60_000 }, async (suite) => {
   const otherEmployee = await login('ci-observer@itsd.example', 'EMPLOYEE');
   const it = await login('it@itsd.example', 'IT');
   const manager = await login('quanly@itsd.example', 'MANAGER');
+  const secondIt = await login('it2@itsd.example', 'IT');
 
   await suite.test('SLA counts working hours across the weekend', async () => {
     const queue = await it.get(itIncidentPath);
@@ -92,6 +93,53 @@ test('IT Service Desk API', { timeout: 60_000 }, async (suite) => {
     const finished = await employee.get(accessPath + '/' + created.id);
     assert.equal(finished.status, 'FULFILLED');
     assert.equal(finished.assignee, 'it@itsd.example');
+  });
+
+  await suite.test('An incident handoff grants ownership once and preserves the first-reply SLA', async () => {
+    const created = await employee.post(incidentPath, 201, {
+      title: 'CI warehouse scanner handoff', description: 'The scanner disconnects after every label.',
+      impact: 'TEAM', category: 'DEVICE', submissionKey: randomUUID(),
+    });
+    const request = itIncidentPath + '/' + created.id;
+    const handoff = { recipient: 'it2@itsd.example', reason: 'The next shift handles warehouse devices.',
+      submissionKey: randomUUID() };
+    await it.post(request + '/claim', 204);
+    await it.post(request + '/messages', 204, {
+      kind: 'PUBLIC_REPLY', body: 'We are investigating the scanner.', submissionKey: randomUUID(),
+    });
+    const initial = await it.get(request);
+    assert.ok(initial.transferOptions.includes(handoff.recipient));
+    assert.deepEqual((await secondIt.get(request)).transferOptions, []);
+    await employee.post(request + '/transfer', 403, handoff);
+    await secondIt.post(request + '/transfer', 403, { ...handoff, recipient: 'it@itsd.example' });
+    await it.post(request + '/transfer', 400, { ...handoff, recipient: 'quanly@itsd.example' });
+    await it.post(request + '/transfer', 400, { ...handoff, recipient: 'it@itsd.example' });
+    await it.post(request + '/transfer', 400, { ...handoff, reason: '   ' });
+    await it.post(request + '/transfer', 204, handoff);
+    await it.post(request + '/transfer', 204, handoff);
+    await it.post(request + '/transfer', 409, { ...handoff, reason: 'Different reason.' });
+    await it.post(request + '/resolve', 403);
+
+    const assigned = await secondIt.get(request);
+    assert.equal(assigned.ticket.status, 'IN_PROGRESS');
+    assert.equal(assigned.ticket.assignee, handoff.recipient);
+    assert.equal(assigned.sla.firstReplyAt, initial.sla.firstReplyAt);
+    assert.equal(assigned.sla.dueAt, initial.sla.dueAt);
+    const events = assigned.activity.filter(event => event.kind === 'TRANSFERRED');
+    assert.equal(events.length, 1);
+    assert.equal(events[0].actor, 'it@itsd.example');
+    assert.equal(events[0].recipient, handoff.recipient);
+    assert.equal(events[0].body, handoff.reason);
+    const employeeView = await employee.get(incidentPath + '/' + created.id);
+    assert.equal(employeeView.assignee, handoff.recipient);
+    assert.ok(employeeView.activity.every(event => event.kind !== 'TRANSFERRED'));
+    await secondIt.post(request + '/messages', 204, {
+      kind: 'PUBLIC_REPLY', body: 'The scanner is working again.', submissionKey: randomUUID(),
+    });
+    await secondIt.post(request + '/resolve', 204);
+    const completed = await secondIt.get(request);
+    assert.equal(completed.ticket.status, 'RESOLVED');
+    assert.equal(completed.sla.firstReplyAt, initial.sla.firstReplyAt);
   });
 
   await suite.test('The requester can reopen with the original assignee and first reply', async () => {

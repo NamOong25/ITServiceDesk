@@ -3,6 +3,7 @@ import { dateFormat, isPublicIncidentMessage, type Activity } from './api';
 
 const labels = {
   ASSIGNED: 'Đã nhận xử lý',
+  TRANSFERRED: 'Đã bàn giao sự cố',
   PUBLIC_REPLY: 'Phản hồi từ IT',
   REQUESTER_REPLY: 'Phản hồi từ nhân viên',
   INTERNAL_NOTE: 'Ghi chú nội bộ',
@@ -41,7 +42,9 @@ export function IncidentTimeline({ createdAt, activity, employee = false, childr
           <span aria-hidden="true">{item.body ? '↳' : '✓'}</span>
           <div className={isPublicIncidentMessage(item.kind) ? 'incident-message' : undefined}>
             <strong>{label}</strong>
-            {!(employee && fromRequester) && <div className="incident-actor">{item.actor}</div>}
+            {item.recipient
+              ? <div className="incident-actor">{item.actor} → {item.recipient}</div>
+              : !(employee && fromRequester) && <div className="incident-actor">{item.actor}</div>}
             <time dateTime={item.createdAt}>{dateFormat.format(new Date(item.createdAt))}</time>
             {item.body && <p className="incident-description">{item.body}</p>}
           </div>

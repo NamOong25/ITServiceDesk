@@ -5,6 +5,7 @@ import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.core.Authentication;
@@ -44,9 +45,11 @@ class ItIncidentController {
             .thenComparing(QueueItem::id, Comparator.reverseOrder());
 
     private final JdbcClient db;
+    private final boolean demoEnabled;
 
-    ItIncidentController(JdbcClient db) {
+    ItIncidentController(JdbcClient db, @Value("${itsd.demo.enabled:false}") boolean demoEnabled) {
         this.db = db;
+        this.demoEnabled = demoEnabled;
     }
 
     @GetMapping
@@ -69,7 +72,7 @@ class ItIncidentController {
 
     @GetMapping("/{id}")
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
-    public Detail detail(@PathVariable long id) {
+    public Detail detail(@PathVariable long id, Authentication account) {
         Ticket ticket = db.sql("select " + SUMMARY_COLUMNS + ", i.description " + FROM_INCIDENTS + "where i.id = :id")
                 .param("id", id)
                 .query(Ticket.class)
@@ -81,8 +84,11 @@ class ItIncidentController {
                 .map(IncidentActivity::createdAt)
                 .findFirst()
                 .orElse(null);
+        List<String> transferOptions = "IN_PROGRESS".equals(ticket.status()) && account.getName().equals(ticket.assignee())
+                ? eligibleRecipients(id, account.getName()).stream().map(Recipient::email).toList()
+                : List.of();
         return new Detail(ticket, activity, FirstReplySla.evaluate(ticket.createdAt(), firstReply, Instant.now()),
-                SavedIncidentSummary.find(db, id).orElse(null));
+                SavedIncidentSummary.find(db, id).orElse(null), transferOptions);
     }
 
     @PostMapping("/{id}/claim")
@@ -102,6 +108,46 @@ class ItIncidentController {
                 .param("id", id)
                 .update();
         recordTransition(id, actor, "ASSIGNED");
+    }
+
+    @PostMapping("/{id}/transfer")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Transactional
+    public void transfer(@PathVariable long id, Authentication account, @RequestBody Transfer transfer) {
+        String actor = account.getName();
+        String email = IncidentController.requiredText(transfer.recipient(), 254);
+        String reason = IncidentController.requiredText(transfer.reason(), 1000);
+        if (transfer.submissionKey() == null || email.equals(actor)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
+
+        Handling state = lockIncident(id);
+        if (IncidentActivity.isReplay(db, id, actor, "TRANSFERRED", reason, email, transfer.submissionKey())) return;
+        requireHandler(state, actor);
+        long recipient = eligibleRecipients(id, actor).stream()
+                .filter(candidate -> candidate.email().equals(email))
+                .findFirst().orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST))
+                .id();
+        db.sql("update incident set assignee_id = :recipient where id = :id")
+                .param("recipient", recipient).param("id", id).update();
+        db.sql("""
+                insert into incident_activity (incident_id, actor_id, kind, body, submission_key, recipient_id)
+                select :id, u.id, 'TRANSFERRED', :reason, :key, :recipient
+                from app_user u where u.email = :actor
+                """).param("id", id).param("actor", actor).param("reason", reason)
+                .param("key", transfer.submissionKey()).param("recipient", recipient).update();
+    }
+
+    private List<Recipient> eligibleRecipients(long id, String actor) {
+        return db.sql("""
+                select candidate.id, candidate.email
+                from incident i join app_user requester on requester.id = i.requester_id
+                join app_user candidate on candidate.role = 'IT'
+                where i.id = :id and candidate.email <> :actor
+                  and (not candidate.demo_account or (:demoEnabled and requester.demo_account))
+                order by candidate.email
+                """).param("id", id).param("actor", actor).param("demoEnabled", demoEnabled)
+                .query(Recipient.class).list();
     }
 
     @PostMapping("/{id}/resolve")
@@ -179,6 +225,8 @@ class ItIncidentController {
     enum Priority { HIGH, MEDIUM, LOW }
     enum MessageKind { PUBLIC_REPLY, INTERNAL_NOTE }
     record PriorityUpdate(Priority priority) {}
+    record Transfer(String recipient, String reason, UUID submissionKey) {}
+    private record Recipient(long id, String email) {}
     record Message(MessageKind kind, String body, UUID submissionKey) {}
     record Handling(String status, String assignee) {}
     record QueueItem(long id, String title, String category, String impact, String status,
@@ -189,5 +237,5 @@ class ItIncidentController {
     record Ticket(long id, String title, String category, String impact, String status,
                   OffsetDateTime createdAt, String requester, String assignee, Priority priority, String description) {}
     record Detail(Ticket ticket, List<IncidentActivity> activity, FirstReplySla sla,
-                  SavedIncidentSummary savedSummary) {}
+                  SavedIncidentSummary savedSummary, List<String> transferOptions) {}
 }

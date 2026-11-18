@@ -32,12 +32,13 @@ npm ci
 npm run dev
 ```
 
-Mở [trang web](http://127.0.0.1:5173) và đăng nhập bằng một trong ba tài khoản demo sau.
+Mở [trang web](http://127.0.0.1:5173) và đăng nhập bằng một trong các tài khoản demo sau.
 
 | Vai trò | Email |
 | --- | --- |
 | Nhân viên | nhanvien@itsd.example |
 | IT | it@itsd.example |
+| IT (nhận bàn giao) | it2@itsd.example |
 | Quản lý | quanly@itsd.example |
 
 Mật khẩu demo dùng chung là `DemoItsd-2026!`. Profile `demo` tạo và cho phép dùng các tài khoản này trên môi trường local. Flyway tạo bảng tài khoản khi backend khởi động, nên PostgreSQL cần sẵn sàng trước.

@@ -83,6 +83,11 @@
 .incident-card .it-priority-edit label { margin-top: 0; }
 .it-priority-edit button { margin-top: 9px; width: 100%; }
 .it-priority-edit button:disabled { opacity: .65; cursor: default; }
+.it-transfer { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--incident-border); }
+.it-transfer summary { cursor: pointer; color: var(--incident-blue); font-size: .88rem; font-weight: 700; }
+.it-transfer button { width: 100%; margin-top: 9px; white-space: normal; }
+.incident-event[data-kind="TRANSFERRED"] { align-items: flex-start; }
+.incident-event[data-kind="TRANSFERRED"] > span { background: #e9eeff; color: #344cb8; }
 .it-composer { margin-top: 13px; }
 .it-composer-tabs { display: flex; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--incident-border); }
 .it-composer-tabs button {

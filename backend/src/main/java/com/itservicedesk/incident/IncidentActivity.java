@@ -2,12 +2,13 @@ package com.itservicedesk.incident;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.web.server.ResponseStatusException;
 
-record IncidentActivity(long id, String kind, String actor, String body, OffsetDateTime createdAt) {
+record IncidentActivity(long id, String kind, String actor, String body, OffsetDateTime createdAt, String recipient) {
     static final String FIRST_PUBLIC_REPLY = """
             (select min(a.created_at) from incident_activity a
              where a.incident_id = i.id and a.kind = 'PUBLIC_REPLY')
@@ -15,9 +16,14 @@ record IncidentActivity(long id, String kind, String actor, String body, OffsetD
 
     // Callers hold the incident row lock so a retry and a new message cannot race.
     static boolean isMessageReplay(JdbcClient db, long id, String actor, String kind, String body, UUID key) {
+        return isReplay(db, id, actor, kind, body, null, key);
+    }
+
+    static boolean isReplay(JdbcClient db, long id, String actor, String kind, String body, String recipient, UUID key) {
         var previous = db.sql("""
-                select a.kind, a.body
+                select a.kind, a.body, target.email as recipient
                 from incident_activity a join app_user u on u.id = a.actor_id
+                left join app_user target on target.id = a.recipient_id
                 where a.incident_id = :id and u.email = :actor and a.submission_key = :key
                 """)
                 .param("id", id)
@@ -27,7 +33,8 @@ record IncidentActivity(long id, String kind, String actor, String body, OffsetD
                 .optional();
         if (previous.isEmpty()) return false;
         PreviousMessage message = previous.get();
-        if (!message.kind().equals(kind) || !message.body().equals(body)) {
+        if (!message.kind().equals(kind) || !Objects.equals(message.body(), body)
+                || !Objects.equals(message.recipient(), recipient)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT);
         }
         return true;
@@ -46,14 +53,15 @@ record IncidentActivity(long id, String kind, String actor, String body, OffsetD
                 .update();
     }
 
-    private record PreviousMessage(String kind, String body) {}
+    private record PreviousMessage(String kind, String body, String recipient) {}
 
     static List<IncidentActivity> timeline(JdbcClient db, long incidentId, boolean includeInternal) {
         return db.sql("""
-                select a.id, a.kind, u.email as actor, a.body, a.created_at
+                select a.id, a.kind, u.email as actor, a.body, a.created_at, target.email as recipient
                 from incident_activity a
                 join app_user u on u.id = a.actor_id
-                where a.incident_id = :incidentId and (a.kind <> 'INTERNAL_NOTE' or :includeInternal)
+                left join app_user target on target.id = a.recipient_id
+                where a.incident_id = :incidentId and (a.kind not in ('INTERNAL_NOTE', 'TRANSFERRED') or :includeInternal)
                 order by a.created_at, a.id
                 """)
                 .param("incidentId", incidentId)

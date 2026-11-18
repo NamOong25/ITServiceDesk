@@ -17,6 +17,7 @@ class DemoAccounts {
         return args -> {
             add(db, encoder, "nhanvien@itsd.example", "EMPLOYEE");
             add(db, encoder, "it@itsd.example", "IT");
+            add(db, encoder, "it2@itsd.example", "IT");
             add(db, encoder, "quanly@itsd.example", "MANAGER");
             db.sql("""
                     update app_user employee set manager_id = manager.id

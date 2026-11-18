@@ -8,7 +8,7 @@ import './employee.css';
 import './it.css';
 
 type MessageKind = 'PUBLIC_REPLY' | 'INTERNAL_NOTE';
-type Action = 'claim' | 'resolve' | 'messages' | 'priority';
+type Action = 'claim' | 'resolve' | 'messages' | 'priority' | 'transfer';
 
 function activeIncident() {
   const match = /^\/it\/incidents\/([1-9][0-9]*)$/.exec(window.location.pathname);
@@ -117,11 +117,16 @@ function Queue({ items, open, filters, onFilterChange }: {
   </>;
 }
 
-function ItIncident({ detail, email, refresh }: { detail: ItDetail; email: string; refresh: () => void }) {
-  const { ticket, activity, savedSummary } = detail;
+function ItIncident({ detail, email, refresh, onTransferred }: {
+  detail: ItDetail; email: string; refresh: () => void; onTransferred: (recipient: string) => void;
+}) {
+  const { ticket, activity, savedSummary, transferOptions } = detail;
   const [kind, setKind] = useState<MessageKind>('PUBLIC_REPLY');
   const [body, setBody] = useState('');
   const [priorityDraft, setPriorityDraft] = useState<IncidentPriority | null>(null);
+  const [recipient, setRecipient] = useState('');
+  const [transferReason, setTransferReason] = useState('');
+  const transferKey = useRef<string | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [pending, setPending] = useState<Action | null>(null);
@@ -155,20 +160,42 @@ function ItIncident({ detail, email, refresh }: { detail: ItDetail; email: strin
       setError('Nhập nội dung trước khi gửi.');
       return;
     }
+    const reason = transferReason.trim();
+    if (action === 'transfer' && (!recipient || !reason)) {
+      setError('Chọn người tiếp nhận và nhập lý do bàn giao.');
+      return;
+    }
     setPending(action);
     setError('');
     setMessage('');
     try {
-      await sendItUpdate(ticket.id, action === 'messages'
-        ? { action, kind, body: text, submissionKey: submission.current ??= crypto.randomUUID() }
-        : action === 'priority' ? { action, priority } : { action });
+      switch (action) {
+        case 'messages':
+          await sendItUpdate(ticket.id, { action, kind, body: text, submissionKey: submission.current ??= crypto.randomUUID() });
+          break;
+        case 'priority':
+          await sendItUpdate(ticket.id, { action, priority });
+          break;
+        case 'transfer':
+          await sendItUpdate(ticket.id, { action, recipient, reason, submissionKey: transferKey.current ??= crypto.randomUUID() });
+          break;
+        default:
+          await sendItUpdate(ticket.id, { action });
+      }
       if (!active.current) return;
       if (action === 'messages') {
         setBody('');
         submission.current = null;
       }
       if (action === 'priority') setPriorityDraft(null);
+      if (action === 'transfer') {
+        onTransferred(recipient);
+        setRecipient('');
+        setTransferReason('');
+        transferKey.current = null;
+      }
       setMessage({
+        transfer: 'Đã bàn giao sự cố cho ' + recipient + '.',
         claim: 'Bạn đã nhận xử lý sự cố.',
         resolve: 'Đã đánh dấu sự cố là đã giải quyết.',
         messages: isNote ? 'Đã lưu ghi chú nội bộ.' : 'Đã gửi phản hồi cho nhân viên.',
@@ -249,6 +276,24 @@ function ItIncident({ detail, email, refresh }: { detail: ItDetail; email: strin
           disabled={!!pending} onClick={() => void act('claim')}>{pending === 'claim' ? 'Đang nhận…' : 'Nhận xử lý'}</button>}
         {mine && <button className="secondary it-side-action" type="button" disabled={!!pending}
           onClick={() => void act('resolve')}>{pending === 'resolve' ? 'Đang cập nhật…' : 'Đánh dấu đã giải quyết'}</button>}
+        {mine && transferOptions?.length > 0 && <details className="it-transfer">
+          <summary>Bàn giao sự cố</summary>
+          <form onSubmit={(event) => { event.preventDefault(); void act('transfer'); }}>
+            <label htmlFor="it-transfer-recipient">Người tiếp nhận</label>
+            <select id="it-transfer-recipient" value={recipient} required disabled={!!pending}
+              onChange={(event) => { setRecipient(event.target.value); transferKey.current = null; }}>
+              <option value="">Chọn nhân viên IT</option>
+              {transferOptions.map((email) => <option key={email} value={email}>{email}</option>)}
+            </select>
+            <label htmlFor="it-transfer-reason">Lý do bàn giao</label>
+            <textarea id="it-transfer-reason" rows={3} maxLength={1000} required value={transferReason}
+              disabled={!!pending}
+              onChange={(event) => { setTransferReason(event.target.value); transferKey.current = null; }} />
+            <button className="incident-primary" type="submit" disabled={!!pending}>
+              {pending === 'transfer' ? 'Đang bàn giao…' : 'Xác nhận bàn giao'}
+            </button>
+          </form>
+        </details>}
         {message && <p className="incident-success" role="status">{message}</p>}
         {error && <p className="form-error" role="alert">{error}</p>}
       </aside>
@@ -303,7 +348,9 @@ export function ItPortal({ email }: { email: string }) {
     <section className="employee-main">
       {id !== null && <button className="incident-back" type="button" onClick={() => open(null)}>← Hàng đợi IT</button>}
       {id === null && queue !== null && <Queue items={queue} open={open} filters={filters} onFilterChange={setFilters} />}
-      {id !== null && detail?.ticket.id === id && <ItIncident key={id} detail={detail} email={email} refresh={refresh} />}
+      {id !== null && detail?.ticket.id === id && <ItIncident key={id} detail={detail} email={email} refresh={refresh}
+        onTransferred={(recipient) => setDetail((current) => current?.ticket.id === id
+          ? { ...current, ticket: { ...current.ticket, assignee: recipient } } : current)} />}
       {error && <div className="incident-card incident-load-status">
         <p className="form-error" role="alert">{error}</p>
         <button className="secondary" type="button" onClick={refresh}>Thử lại</button>

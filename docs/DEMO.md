@@ -9,12 +9,13 @@ cd /d "D:\Video OBS\Portfolio\ITServiceDesk\backend"
 mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=demo,portfolio
 ```
 
-Mở [trang ứng dụng local](http://127.0.0.1:5173). Dùng mật khẩu `DemoItsd-2026!` cho ba tài khoản demo:
+Mở [trang ứng dụng local](http://127.0.0.1:5173). Dùng mật khẩu `DemoItsd-2026!` cho các tài khoản demo:
 
 | Vai trò | Tài khoản |
 | --- | --- |
 | Nhân viên | `nhanvien@itsd.example` |
 | IT | `it@itsd.example` |
+| IT (nhận bàn giao) | `it2@itsd.example` |
 | Quản lý | `quanly@itsd.example` |
 
 Profile `portfolio` thêm mẫu vào dữ liệu local đang dùng. Khởi động lại giữ nguyên các thay đổi đã thực hiện trên mẫu. Để trình diễn lại từ đầu, tạo sự cố hoặc yêu cầu mới bằng form tương ứng.
@@ -47,3 +48,10 @@ Mở **Cách tính hạn** để xem 30 phút của thứ Sáu và 90 phút củ
 2. Ở vai trò quản lý, mở yêu cầu từ **Tổng quan** hoặc **Yêu cầu cần duyệt**, rồi bấm **Duyệt yêu cầu**.
 3. Ở vai trò IT, mở **Yêu cầu cấp quyền**. Chọn **Nhận xử lý**, rồi **Xác nhận đã cấp quyền** để minh họa xác nhận hoàn tất.
 4. Kiểm tra nhân viên thấy trạng thái **Đã cấp quyền**. Để trình diễn nhánh từ chối, gửi thêm một yêu cầu và nhập lý do từ chối bằng tài khoản quản lý.
+
+## 4. Bàn giao sự cố giữa hai nhân viên IT
+
+1. Dùng tài khoản `it@itsd.example` để mở một sự cố mình đang xử lý, hoặc nhận một sự cố mới. Gửi một phản hồi công khai để lưu mốc phản hồi đầu tiên.
+2. Trong **Thông tin xử lý**, mở **Bàn giao sự cố**. Chọn `it2@itsd.example`, nhập lý do như “Bàn giao ca chiều để kiểm tra thiết bị tại kho” và xác nhận.
+3. Ở cửa sổ khác, đăng nhập `it2@itsd.example` rồi mở cùng sự cố. Kiểm tra người xử lý, mốc phản hồi đầu tiên và sự kiện **Đã bàn giao sự cố**. Tài khoản mới có thể tiếp tục phản hồi và giải quyết sự cố.
+4. Ở cổng nhân viên, kiểm tra thông tin người xử lý đã đổi. Lý do bàn giao chỉ hiển thị ở cổng IT.

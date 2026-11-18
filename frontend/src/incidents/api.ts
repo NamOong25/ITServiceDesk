@@ -66,7 +66,7 @@ export async function replyToIncident(id: number, body: string, submissionKey: s
 
 export type ResolutionFeedback = {
   resolutionId: number;
-  decision: 'CONFIRMED' | 'REOPENED';
+  decision: 'CONFIRMED' | 'REOPENED' | 'TRANSFERRED';
   body: string | null;
   submissionKey: string;
 };
@@ -96,10 +96,11 @@ export function ticketCode(id: number) {
 export type IncidentStatus = keyof typeof statusLabels;
 export type Activity = {
   id: number;
-  kind: 'ASSIGNED' | 'PUBLIC_REPLY' | 'REQUESTER_REPLY' | 'INTERNAL_NOTE' | 'RESOLVED' | 'CONFIRMED' | 'REOPENED';
+  kind: 'ASSIGNED' | 'PUBLIC_REPLY' | 'REQUESTER_REPLY' | 'INTERNAL_NOTE' | 'RESOLVED' | 'CONFIRMED' | 'REOPENED' | 'TRANSFERRED';
   actor: string;
   body: string | null;
   createdAt: string;
+  recipient: string | null;
 };
 
 export function isPublicIncidentMessage(kind: Activity['kind']) {
@@ -136,6 +137,7 @@ export type ItDetail = {
   activity: Activity[];
   sla: ReplySla;
   savedSummary: IncidentSummaryResult | null;
+  transferOptions: string[];
 };
 
 const itPath = '/api/it/incidents';
@@ -151,11 +153,15 @@ export async function getItIncident(id: number, signal: AbortSignal): Promise<It
 type ItUpdate =
   | { action: 'claim' | 'resolve' }
   | { action: 'messages'; kind: 'PUBLIC_REPLY' | 'INTERNAL_NOTE'; body: string; submissionKey: string }
-  | { action: 'priority'; priority: IncidentPriority };
+  | { action: 'priority'; priority: IncidentPriority }
+  | { action: 'transfer'; recipient: string; reason: string; submissionKey: string };
 
 export async function sendItUpdate(id: number, { action, ...payload }: ItUpdate): Promise<void> {
   const response = await postWithCsrf(itPath + '/' + id + '/' + action,
-    action === 'messages' || action === 'priority' ? JSON.stringify(payload) : undefined);
+    action === 'claim' || action === 'resolve' ? undefined : JSON.stringify(payload));
+  if (action === 'transfer' && response.status === 400) {
+    throw new Error('Kiểm tra người nhận và lý do bàn giao rồi thử lại.');
+  }
   if (response.status === 403 || response.status === 409) {
     throw new Error('Sự cố đã đổi trạng thái hoặc người xử lý. Hãy tải lại trang.');
   }
