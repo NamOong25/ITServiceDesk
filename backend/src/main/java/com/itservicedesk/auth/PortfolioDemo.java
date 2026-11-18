@@ -50,6 +50,7 @@ class PortfolioDemo {
         LocalDate friday = monday.minusDays(3);
 
         seedWeekend(db, accounts, friday, monday);
+        new PortfolioSamples(db, accounts, now).seed();
         addOpenIncident(db, accounts.employeeId(), OVERDUE_TICKET, "[Demo] Outlook không gửi được email",
                 "SOFTWARE", "Hộp thư công ty báo lỗi khi bấm gửi.", at(friday, 14, 0));
         addOpenIncident(db, accounts.employeeId(), OPEN_TICKET, "[Demo] Máy in văn phòng không in được",

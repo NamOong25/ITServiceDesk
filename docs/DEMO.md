@@ -19,6 +19,8 @@ Mở [trang ứng dụng local](http://127.0.0.1:5173). Dùng mật khẩu `Demo
 
 Profile `portfolio` thêm mẫu vào dữ liệu local đang dùng. Khởi động lại giữ nguyên các thay đổi đã thực hiện trên mẫu. Để trình diễn lại từ đầu, tạo sự cố hoặc yêu cầu mới bằng form tương ứng.
 
+Profile này có thêm 20 sự cố đánh dấu **[Mẫu]** và 12 yêu cầu cấp quyền có hậu tố **(mẫu)**. Hàng đợi có ca chưa nhận, đang xử lý, phản hồi đúng hoặc trễ hạn, đã xác nhận và đã mở lại. Danh sách cấp quyền có đủ các trạng thái chờ duyệt, đã duyệt, từ chối, đang xử lý và đã cấp. Dữ liệu sự cố trải từ ngày chạy lần đầu đến khoảng 10 tuần trước để thử bộ lọc 7, 30 hoặc 90 ngày trong **Tổng quan**.
+
 ## 1. Từ báo sự cố đến phản hồi
 
 1. Ở vai trò nhân viên, mở **Sự cố của tôi** và tìm **[Demo] Máy in văn phòng không in được**.
