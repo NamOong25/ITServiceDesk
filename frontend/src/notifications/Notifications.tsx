@@ -163,7 +163,7 @@ export function Notifications() {
       {openError && <p className="notifications-feedback" role="alert">{openError}</p>}
       {inbox && inbox.items.length > 0 && <ul className="notifications-items" role="list">
         {inbox.items.map((item) => <li key={item.id}>
-          <button type="button" className="notifications-item" data-unread={item.unread}
+          <button type="button" className="notifications-item" data-kind={item.kind} data-unread={item.unread}
             disabled={opening !== null} onClick={() => void visit(item)}>
             <strong>{labels[item.kind]}</strong>
             <span>{target(item).code} · {item.title}</span>

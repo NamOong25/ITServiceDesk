@@ -80,6 +80,28 @@
 }
 .notifications .notifications-item[data-unread="true"] { border-left-color: #516ada; background: #f2f5ff; }
 .notifications .notifications-item:hover { background: #e9efff; }
+.notifications .notifications-item[data-kind="ACCESS_SUBMITTED"] {
+  --notification-accent: #b48016;
+  --notification-text: #795509;
+  --notification-tint: #fff8e5;
+  --notification-highlight: #fff0cb;
+}
+.notifications .notifications-item[data-kind="ACCESS_APPROVED"] {
+  --notification-accent: #388468;
+  --notification-text: #216448;
+  --notification-tint: #eff9f3;
+  --notification-highlight: #def3e9;
+}
+.notifications .notifications-item:is([data-kind="ACCESS_SUBMITTED"], [data-kind="ACCESS_APPROVED"]) {
+  border-left-color: var(--notification-accent);
+  background: var(--notification-tint);
+}
+.notifications .notifications-item:is([data-kind="ACCESS_SUBMITTED"], [data-kind="ACCESS_APPROVED"]):is([data-unread="true"], :hover) {
+  background: var(--notification-highlight);
+}
+.notifications .notifications-item:is([data-kind="ACCESS_SUBMITTED"], [data-kind="ACCESS_APPROVED"]) :is(strong, .notifications-unread-label) {
+  color: var(--notification-text);
+}
 .notifications .notifications-item:focus-visible { outline: 2px solid #6076dc; outline-offset: -2px; }
 .notifications-item time, .notifications-unread-label { font-size: .73rem; }
 .notifications-unread-label { color: #3150c6; }
