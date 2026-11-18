@@ -1,0 +1,96 @@
+name: IT Service Desk CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build and API smoke tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: itsd_ci
+          POSTGRES_USER: itsd
+          POSTGRES_PASSWORD: itsd_ci_local
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U itsd -d itsd_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build backend
+        working-directory: backend
+        run: bash ./mvnw -B -ntp package
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Verify incident and access request APIs
+        env:
+          ITSD_DB_URL: jdbc:postgresql://127.0.0.1:${{ job.services.postgres.ports[5432] }}/itsd_ci
+          ITSD_DB_USER: itsd
+          ITSD_DB_PASSWORD: itsd_ci_local
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          log="$RUNNER_TEMP/itsd-backend.log"
+          java -jar backend/target/it-service-desk-0.1.0-SNAPSHOT.jar \
+            --server.port=18081 --spring.profiles.active=demo,portfolio \
+            --management.endpoint.health.probes.enabled=true --GEMINI_API_KEY= > "$log" 2>&1 &
+          backend_pid=$!
+
+          finish() {
+            status=$?
+            if [ "$status" -ne 0 ]; then tail -n 80 "$log"; fi
+            kill "$backend_pid" 2>/dev/null || true
+            wait "$backend_pid" 2>/dev/null || true
+          }
+          trap finish EXIT
+
+          ready='http://127.0.0.1:18081/actuator/health/readiness'
+          for attempt in {1..60}; do
+            if curl --fail --silent --max-time 2 "$ready" >/dev/null; then break; fi
+            if ! kill -0 "$backend_pid" 2>/dev/null; then exit 1; fi
+            sleep 1
+          done
+          curl --fail --silent --show-error --max-time 2 "$ready"
+
+          docker exec -i "$POSTGRES_CONTAINER" psql -U itsd -d itsd_ci -v ON_ERROR_STOP=1 <<'SQL'
+          insert into app_user (email, password_hash, role, demo_account)
+          select 'ci-observer@itsd.example', password_hash, role, true
+          from app_user where email = 'nhanvien@itsd.example';
+          SQL
+
+          node --test tests/ci-smoke.mjs

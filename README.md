@@ -95,3 +95,8 @@ mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=demo,portfolio
 ```
 
 Đăng nhập vai trò IT, mở sự cố mẫu VPN và bấm **Tạo tóm tắt**. Phần này dùng Gemini 3.1 Flash-Lite và chỉ gửi mô tả cùng tối đa 12 phản hồi công khai gần nhất. Kết quả được lưu theo sự cố và hiển thị lại khi IT mở chi tiết. Khi có phản hồi công khai mới, thẻ báo **Có phản hồi mới**. Bấm **Cập nhật tóm tắt** để gửi nội dung mới tới Gemini.
+
+
+## Kiểm thử tự động trên GitHub
+
+Workflow **IT Service Desk CI** chạy khi push lên `main` hoặc mở pull request vào `main`. GitHub build backend bằng Java 21, build frontend bằng Node.js 22 và kiểm tra API với một PostgreSQL riêng cho từng lượt chạy. Các ca kiểm thử bao gồm SLA qua cuối tuần, phê duyệt cấp quyền và mở lại sự cố đúng quyền. Workflow dùng dữ liệu mẫu và chạy không cần khóa Gemini.
