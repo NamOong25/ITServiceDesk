@@ -1,5 +1,6 @@
 package com.itservicedesk.incident;
 
+import com.itservicedesk.notification.NotificationPublisher;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
@@ -34,9 +35,11 @@ class IncidentController {
             """;
 
     private final JdbcClient db;
+    private final NotificationPublisher notifications;
 
-    IncidentController(JdbcClient db) {
+    IncidentController(JdbcClient db, NotificationPublisher notifications) {
         this.db = db;
+        this.notifications = notifications;
     }
 
     @GetMapping
@@ -68,10 +71,11 @@ class IncidentController {
             if (!waiting && !"IN_PROGRESS".equals(incident.status())) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT);
             }
-            IncidentActivity.addMessage(db, id, actor, REQUESTER_REPLY, body, message.submissionKey());
+            long activity = IncidentActivity.addMessage(db, id, actor, REQUESTER_REPLY, body, message.submissionKey());
             if (waiting) {
                 db.sql("update incident set status = 'IN_PROGRESS' where id = :id").param("id", id).update();
                 incident = ownIncident(id, actor, false);
+                notifications.incidentActivity(activity);
             }
         }
         return withTimeline(incident);

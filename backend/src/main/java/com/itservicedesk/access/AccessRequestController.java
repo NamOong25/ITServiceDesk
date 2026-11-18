@@ -1,5 +1,7 @@
 package com.itservicedesk.access;
 
+import com.itservicedesk.notification.NotificationPublisher;
+import com.itservicedesk.notification.NotificationPublisher.AccessEvent;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -34,9 +36,11 @@ class AccessRequestController {
     private static final String FOR_IT = "where r.status in ('APPROVED', 'IN_PROGRESS', 'FULFILLED')";
 
     private final JdbcClient db;
+    private final NotificationPublisher notifications;
 
-    AccessRequestController(JdbcClient db) {
+    AccessRequestController(JdbcClient db, NotificationPublisher notifications) {
         this.db = db;
+        this.notifications = notifications;
     }
 
     @GetMapping("/access-requests")
@@ -87,6 +91,7 @@ class AccessRequestController {
         AccessRequest request = detail(FOR_EMPLOYEE, email, id);
         if (!request.systemName().equals(system) || !request.requestedPermission().equals(permission)
                 || !request.reason().equals(reason)) conflict();
+        if (prior.isEmpty()) notifications.accessRequest(id, AccessEvent.ACCESS_SUBMITTED);
         return request;
     }
 
@@ -102,7 +107,8 @@ class AccessRequestController {
 
     @PostMapping("/manager/access-requests/{id}/decision")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    void decide(@PathVariable long id, Authentication account, @RequestBody Decision decision) {
+    @Transactional
+    public void decide(@PathVariable long id, Authentication account, @RequestBody Decision decision) {
         if (decision.outcome() == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         String note = decision.note() == null || decision.note().isBlank() ? null : requiredText(decision.note(), 2000);
         if (decision.outcome() == Outcome.REJECTED && note == null) {
@@ -127,6 +133,9 @@ class AccessRequestController {
                     || (decision.outcome() == Outcome.APPROVED
                         && List.of("IN_PROGRESS", "FULFILLED").contains(request.status()));
             if (!matches || !Objects.equals(request.decisionNote(), note)) conflict();
+        } else {
+            notifications.accessRequest(id,
+                    decision.outcome() == Outcome.APPROVED ? AccessEvent.ACCESS_APPROVED : AccessEvent.ACCESS_REJECTED);
         }
     }
 

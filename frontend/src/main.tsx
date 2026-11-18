@@ -5,6 +5,7 @@ import { EmployeePortal } from './incidents/EmployeePortal';
 import { ItPortal } from './incidents/ItPortal';
 import { AccessPortal } from './incidents/AccessPortal';
 import { ManagerOverview } from './incidents/ManagerOverview';
+import { Notifications } from './notifications/Notifications';
 import './style.css';
 import './workspace.css';
 
@@ -134,8 +135,11 @@ function WorkspacePage({ account, onLogout }: { account: Account; onLogout: () =
         <header className="workspace-toolbar">
           <div>{navigation.title} <span aria-hidden="true">/</span>
             <strong>{accessSelected ? navigation.access : navigation.primary}</strong></div>
-          <button className="secondary" type="button" disabled={pending}
-            onClick={logout}>{pending ? 'Đang đăng xuất…' : 'Đăng xuất'}</button>
+          <div className="workspace-toolbar-actions">
+            <Notifications />
+            <button className="secondary" type="button" disabled={pending}
+              onClick={logout}>{pending ? 'Đang đăng xuất…' : 'Đăng xuất'}</button>
+          </div>
         </header>
         <main className="workspace-content">
           {logoutError && <p role="alert" className="form-error">{logoutError}</p>}

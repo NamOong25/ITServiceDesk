@@ -1,5 +1,6 @@
 package com.itservicedesk.incident;
 
+import com.itservicedesk.notification.NotificationPublisher;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.Comparator;
@@ -45,10 +46,13 @@ class ItIncidentController {
             .thenComparing(QueueItem::id, Comparator.reverseOrder());
 
     private final JdbcClient db;
+    private final NotificationPublisher notifications;
     private final boolean demoEnabled;
 
-    ItIncidentController(JdbcClient db, @Value("${itsd.demo.enabled:false}") boolean demoEnabled) {
+    ItIncidentController(JdbcClient db, NotificationPublisher notifications,
+                         @Value("${itsd.demo.enabled:false}") boolean demoEnabled) {
         this.db = db;
+        this.notifications = notifications;
         this.demoEnabled = demoEnabled;
     }
 
@@ -128,12 +132,14 @@ class ItIncidentController {
                 .id();
         db.sql("update incident set assignee_id = :recipient where id = :id")
                 .param("recipient", recipient).param("id", id).update();
-        db.sql("""
+        long activity = db.sql("""
                 insert into incident_activity (incident_id, actor_id, kind, body, submission_key, recipient_id)
                 select :id, u.id, 'TRANSFERRED', :reason, :key, :recipient
                 from app_user u where u.email = :actor
+                returning id
                 """).param("id", id).param("actor", actor).param("reason", reason)
-                .param("key", transfer.submissionKey()).param("recipient", recipient).update();
+                .param("key", transfer.submissionKey()).param("recipient", recipient).query(Long.class).single();
+        notifications.incidentActivity(activity);
     }
 
     private List<Recipient> eligibleRecipients(long id, String actor) {
@@ -157,7 +163,7 @@ class ItIncidentController {
         if ("RESOLVED".equals(state.status()) && actor.equals(state.assignee())) return;
         requireHandler(state, actor);
         db.sql("update incident set status = 'RESOLVED' where id = :id").param("id", id).update();
-        recordTransition(id, actor, "RESOLVED");
+        notifications.incidentActivity(recordTransition(id, actor, "RESOLVED"));
     }
 
     @PostMapping("/{id}/priority")
@@ -189,7 +195,8 @@ class ItIncidentController {
             requireState("IN_PROGRESS".equals(state.status()));
             db.sql("update incident set status = 'WAITING_CUSTOMER' where id = :id").param("id", id).update();
         }
-        IncidentActivity.addMessage(db, id, actor, kind, text, message.submissionKey());
+        long activity = IncidentActivity.addMessage(db, id, actor, kind, text, message.submissionKey());
+        if (message.kind() == MessageKind.WAIT_REQUESTED) notifications.incidentActivity(activity);
     }
 
     private Handling lockIncident(long id) {
@@ -204,15 +211,16 @@ class ItIncidentController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 
-    private void recordTransition(long id, String actor, String kind) {
-        db.sql("""
+    private long recordTransition(long id, String actor, String kind) {
+        return db.sql("""
                 insert into incident_activity (incident_id, actor_id, kind, created_at)
                 select :id, id, :kind, clock_timestamp() from app_user where email = :actor
+                returning id
                 """)
                 .param("id", id)
                 .param("actor", actor)
                 .param("kind", kind)
-                .update();
+                .query(Long.class).single();
     }
 
     private static void requireHandler(Handling state, String actor) {

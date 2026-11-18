@@ -47,17 +47,18 @@ record IncidentActivity(long id, String kind, String actor, String body, OffsetD
         return true;
     }
 
-    static void addMessage(JdbcClient db, long id, String actor, String kind, String body, UUID key) {
-        db.sql("""
+    static long addMessage(JdbcClient db, long id, String actor, String kind, String body, UUID key) {
+        return db.sql("""
                 insert into incident_activity (incident_id, actor_id, kind, body, submission_key, created_at)
                 select :id, u.id, :kind, :body, :key, clock_timestamp() from app_user u where u.email = :actor
+                returning id
                 """)
                 .param("id", id)
                 .param("actor", actor)
                 .param("kind", kind)
                 .param("body", body)
                 .param("key", key)
-                .update();
+                .query(Long.class).single();
     }
 
     private record PreviousMessage(String kind, String body, String recipient) {}

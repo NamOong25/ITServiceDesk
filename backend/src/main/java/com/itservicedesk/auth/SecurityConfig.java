@@ -56,7 +56,8 @@ class SecurityConfig {
                         .requestMatchers("/api/access-requests", "/api/access-requests/**").hasRole("EMPLOYEE")
                         .requestMatchers("/api/manager/access-requests", "/api/manager/access-requests/**").hasRole("MANAGER")
                         .requestMatchers("/api/it/access-requests", "/api/it/access-requests/**").hasRole("IT")
-                        .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/notifications").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/notifications/*/read").authenticated()
                         .anyRequest().denyAll())
                 .exceptionHandling(errors ->
                         errors.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))

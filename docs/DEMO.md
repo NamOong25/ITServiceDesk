@@ -70,3 +70,9 @@ Thời lượng tính từ lúc gửi sự cố, với các mức Cao 4 giờ, T
 1. Đăng nhập bằng tài khoản quản lý. Ở **Tổng quan nhóm**, chọn **30 ngày qua** rồi bấm từng thẻ **Quá hạn phản hồi đầu tiên**, **Quá hạn giải quyết** và **Chờ nhân viên phản hồi** để lọc danh sách **Sự cố của nhóm**.
 2. Mở một sự cố trong danh sách. Xem người xử lý, lịch sử trao đổi công khai và hai hạn SLA. Bấm **Tổng quan nhóm** để quay về đúng khoảng ngày và bộ lọc.
 3. Để thử bộ lọc chờ, thực hiện bước 2 ở phần 5 trên một sự cố của nhân viên thuộc nhóm. Nếu sự cố đã vượt hạn giải quyết trước khi tạm dừng, nó xuất hiện ở cả bộ lọc chờ và bộ lọc quá hạn.
+
+## 7. Thông báo trong ứng dụng
+
+Dùng hai cửa sổ riêng khi thử. Nhân viên tạo một yêu cầu cấp quyền mới. Quản lý mở chuông cạnh **Đăng xuất**, chọn thông báo để mở đúng yêu cầu và duyệt. Khi nhân viên quay lại tab của mình, chuông cập nhật số chưa đọc. Mở thông báo để kiểm tra số chưa đọc giảm đi.
+
+Ở luồng sự cố, IT gửi câu hỏi bằng **Gửi và chờ phản hồi**. Nhân viên nhận thông báo và trả lời. Người đang xử lý sẽ nhận thông báo phản hồi. Có thể thử thêm việc bàn giao sang `it2@itsd.example` và đánh dấu đã giải quyết để xem thông báo tương ứng.

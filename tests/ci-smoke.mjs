@@ -225,6 +225,77 @@ test('IT Service Desk API', { timeout: 60_000 }, async (suite) => {
     assert.equal(reopened.sla.firstReplyAt, paused.sla.firstReplyAt);
   });
 
+  await suite.test('In-app notifications target the right account and are read once', async () => {
+    const inbox = '/api/notifications';
+    async function itemFor(user, id, kind) {
+      const overview = await user.get(inbox);
+      const matches = overview.items.filter(item => item.resourceId === id && item.kind === kind);
+      assert.equal(matches.length, 1, 'One notification for ' + kind);
+      return matches[0];
+    }
+
+    const submitted = { systemName: 'CI notifications approved workspace', requestedPermission: 'View',
+      reason: 'Test notifications', submissionKey: randomUUID() };
+    const [access, repeated] = await Promise.all([
+      employee.post(accessPath, 201, submitted), employee.post(accessPath, 201, submitted),
+    ]);
+    assert.equal(access.id, repeated.id);
+    const pending = await itemFor(manager, access.id, 'ACCESS_SUBMITTED');
+    assert.equal(pending.title, submitted.systemName);
+    assert.equal(pending.unread, true);
+    assert.equal((await it.get(inbox)).items.some(item => item.id === pending.id), false);
+    await it.post(inbox + '/' + pending.id + '/read', 404);
+    const before = (await manager.get(inbox)).unreadCount;
+    await manager.post(inbox + '/' + pending.id + '/read', 204);
+    await manager.post(inbox + '/' + pending.id + '/read', 204);
+    assert.equal((await manager.get(inbox)).unreadCount, before - 1);
+    assert.equal((await itemFor(manager, access.id, 'ACCESS_SUBMITTED')).unread, false);
+    const decision = managerAccessPath + '/' + access.id + '/decision';
+    await manager.post(decision, 204, { outcome: 'APPROVED' });
+    await manager.post(decision, 204, { outcome: 'APPROVED' });
+    const approved = await itemFor(employee, access.id, 'ACCESS_APPROVED');
+
+    const rejected = await employee.post(accessPath, 201, {
+      ...submitted, systemName: 'CI notifications rejected workspace', submissionKey: randomUUID(),
+    });
+    await manager.post(managerAccessPath + '/' + rejected.id + '/decision', 204, {
+      outcome: 'REJECTED', note: 'Scope exceeds the request.',
+    });
+    const denied = await itemFor(employee, rejected.id, 'ACCESS_REJECTED');
+    const older = await employee.get(inbox + '?before=' + denied.id);
+    assert.ok(older.items.some(item => item.id === approved.id) && older.items.every(item => item.id < denied.id));
+
+    const ticket = await employee.post(incidentPath, 201, {
+      title: 'CI notifications scanner', description: 'A scanner has stopped working.',
+      impact: 'TEAM', category: 'DEVICE', submissionKey: randomUUID(),
+    });
+    const work = itIncidentPath + '/' + ticket.id;
+    await it.post(work + '/claim', 204);
+    const ask = { kind: 'WAIT_REQUESTED', body: 'Can you send the scanner model?', submissionKey: randomUUID() };
+    await it.post(work + '/messages', 204, ask);
+    await it.post(work + '/messages', 204, ask);
+    await it.post(work + '/messages', 204, {
+      kind: 'INTERNAL_NOTE', body: 'Internal details.', submissionKey: randomUUID(),
+    });
+    await itemFor(employee, ticket.id, 'WAIT_REQUESTED');
+    const transfer = { recipient: 'it2@itsd.example', reason: 'Handoff to the next shift.', submissionKey: randomUUID() };
+    await it.post(work + '/transfer', 204, transfer);
+    await it.post(work + '/transfer', 204, transfer);
+    await itemFor(secondIt, ticket.id, 'TRANSFERRED');
+    const reply = { body: 'Scanner model A.', submissionKey: randomUUID() };
+    await employee.post(incidentPath + '/' + ticket.id + '/messages', 200, reply);
+    await employee.post(incidentPath + '/' + ticket.id + '/messages', 200, reply);
+    await itemFor(secondIt, ticket.id, 'REQUESTER_REPLY');
+    assert.ok((await it.get(inbox)).items.every(item => item.kind !== 'REQUESTER_REPLY' || item.resourceId !== ticket.id));
+    await secondIt.post(work + '/resolve', 204);
+    await secondIt.post(work + '/resolve', 204);
+    await itemFor(employee, ticket.id, 'RESOLVED');
+    const employeeEvents = (await employee.get(inbox)).items.filter(item => item.resourceId === ticket.id
+      && !item.kind.startsWith('ACCESS_'));
+    assert.deepEqual(employeeEvents.map(item => item.kind), ['RESOLVED', 'WAIT_REQUESTED']);
+    assert.ok((await otherEmployee.get(inbox)).items.length === 0);
+  });
+
   await suite.test('Manager dashboard separates SLA counters and only exposes team incidents', async () => {
     const foreign = await otherEmployee.post(incidentPath, 201, {
       title: 'CI unrelated employee incident', description: 'Outside this manager’s team.',
