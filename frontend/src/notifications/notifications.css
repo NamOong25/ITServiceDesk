@@ -62,14 +62,20 @@
 }
 .notifications-heading h2 { color: #16223a; font-size: .98rem; }
 .notifications-heading h2, .notifications-heading p { margin: 0; }
-.notifications-items { list-style: none; margin: 0; padding: 0; }
-.notifications-items li + li { border-top: 1px solid #e9edf6; }
+.notifications-items {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 10px;
+}
 .notifications .notifications-item {
   display: grid;
   gap: 4px;
   width: 100%;
-  border: 0;
-  border-left: 3px solid transparent;
+  border: 1px solid #e0e6f1;
+  border-left-width: 3px;
+  border-radius: 10px;
   padding: 10px 14px 10px 11px;
   background: white;
   color: #3e506f;
