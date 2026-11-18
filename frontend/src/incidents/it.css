@@ -89,6 +89,10 @@
 .incident-event[data-kind="TRANSFERRED"] { align-items: flex-start; }
 .incident-event[data-kind="TRANSFERRED"] > span { background: #e9eeff; color: #344cb8; }
 .it-composer { margin-top: 13px; }
+.it-composer .incident-actions { flex-wrap: wrap; }
+.incident-pill[data-status="WAITING_CUSTOMER"] { white-space: normal; }
+.incident-pill[data-status="WAITING_CUSTOMER"],
+[data-sla="PAUSED"] .sla-badge { background: #fff0d6; color: #795509; }
 .it-composer-tabs { display: flex; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--incident-border); }
 .it-composer-tabs button {
   background: transparent;

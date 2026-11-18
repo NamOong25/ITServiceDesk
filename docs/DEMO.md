@@ -55,3 +55,12 @@ Mở **Cách tính hạn** để xem 30 phút của thứ Sáu và 90 phút củ
 2. Trong **Thông tin xử lý**, mở **Bàn giao sự cố**. Chọn `it2@itsd.example`, nhập lý do như “Bàn giao ca chiều để kiểm tra thiết bị tại kho” và xác nhận.
 3. Ở cửa sổ khác, đăng nhập `it2@itsd.example` rồi mở cùng sự cố. Kiểm tra người xử lý, mốc phản hồi đầu tiên và sự kiện **Đã bàn giao sự cố**. Tài khoản mới có thể tiếp tục phản hồi và giải quyết sự cố.
 4. Ở cổng nhân viên, kiểm tra thông tin người xử lý đã đổi. Lý do bàn giao chỉ hiển thị ở cổng IT.
+
+## 5. Chờ nhân viên và theo dõi hạn giải quyết
+
+1. Nhân viên báo một sự cố ảnh hưởng **Một nhóm**. IT nhận xử lý rồi kiểm tra **Hạn giải quyết** trong **Thông tin xử lý**. Mức ưu tiên ban đầu Trung bình có 8 giờ làm việc.
+2. Trong **Trả lời nhân viên**, nhập câu hỏi và bấm **Gửi và chờ phản hồi**. Câu hỏi xuất hiện ở cả hai cổng. Nếu đây là phản hồi công khai đầu tiên, hệ thống ghi nhận luôn mốc phản hồi đầu tiên. Mục **Hạn giải quyết** hiển thị **Đang tạm dừng**.
+3. Nhân viên vào chi tiết và bấm **Gửi phản hồi**. Sự cố tự trở lại **Đang xử lý** với cùng người phụ trách. IT mở lại hoặc chuyển về tab chi tiết để xem hạn mới.
+4. IT đánh dấu **Đã giải quyết**. Nếu nhân viên mở lại sự cố, đồng hồ giải quyết tiếp tục từ thời lượng đã dùng.
+
+Thời lượng tính từ lúc gửi sự cố, với các mức Cao 4 giờ, Trung bình 8 giờ và Thấp 16 giờ. Hệ thống dùng mức ưu tiên ban đầu theo phạm vi ảnh hưởng, lịch làm việc 08:00–17:00 từ thứ Hai đến thứ Sáu và giờ Việt Nam.

@@ -5,6 +5,7 @@ const labels = {
   ASSIGNED: 'Đã nhận xử lý',
   TRANSFERRED: 'Đã bàn giao sự cố',
   PUBLIC_REPLY: 'Phản hồi từ IT',
+  WAIT_REQUESTED: 'IT yêu cầu bổ sung thông tin',
   REQUESTER_REPLY: 'Phản hồi từ nhân viên',
   INTERNAL_NOTE: 'Ghi chú nội bộ',
   RESOLVED: 'IT đã đánh dấu sự cố là đã giải quyết',
@@ -21,7 +22,7 @@ const requesterLabels = {
 export function IncidentTimeline({ createdAt, activity, employee = false, children }: {
   createdAt: string; activity: Activity[]; employee?: boolean; children?: ReactNode;
 }) {
-  const firstReplyId = activity.find((item) => item.kind === 'PUBLIC_REPLY')?.id;
+  const firstReplyId = activity.find((item) => item.kind === 'PUBLIC_REPLY' || item.kind === 'WAIT_REQUESTED')?.id;
   return (
     <section className="incident-card incident-timeline">
       <h2>Hoạt động và trao đổi</h2>
@@ -35,7 +36,7 @@ export function IncidentTimeline({ createdAt, activity, employee = false, childr
       {activity.map((item) => {
         const { kind } = item;
         const fromRequester = kind === 'REQUESTER_REPLY' || kind === 'CONFIRMED' || kind === 'REOPENED';
-        const label = item.id === firstReplyId ? 'Phản hồi đầu tiên từ IT'
+        const label = kind === 'PUBLIC_REPLY' && item.id === firstReplyId ? 'Phản hồi đầu tiên từ IT'
           : fromRequester && employee ? requesterLabels[kind] : labels[kind];
 
         return <div key={item.id} className="incident-event" data-kind={item.kind}>

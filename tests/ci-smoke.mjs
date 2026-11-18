@@ -142,6 +142,75 @@ test('IT Service Desk API', { timeout: 60_000 }, async (suite) => {
     assert.equal(completed.sla.firstReplyAt, initial.sla.firstReplyAt);
   });
 
+  await suite.test('Waiting for the requester pauses the resolution SLA and keeps the first reply', async () => {
+    const created = await employee.post(incidentPath, 201, {
+      title: 'CI missing printer error code', description: 'The shared printer shows an error.',
+      impact: 'TEAM', category: 'DEVICE', submissionKey: randomUUID(),
+    });
+    const request = itIncidentPath + '/' + created.id;
+    const customer = incidentPath + '/' + created.id;
+    const ask = { kind: 'WAIT_REQUESTED', body: 'Can you send the error code?', submissionKey: randomUUID() };
+    const initial = await it.get(request);
+    assert.equal(initial.resolutionSla.targetMinutes, 480);
+    assert.equal(initial.resolutionSla.state, 'ACTIVE');
+    await it.post(request + '/claim', 204);
+    await secondIt.post(request + '/messages', 403, ask);
+    await it.post(request + '/messages', 204, ask);
+    await it.post(request + '/messages', 204, ask);
+    await it.post(request + '/messages', 409, { ...ask, submissionKey: randomUUID() });
+    await it.post(request + '/messages', 204, {
+      kind: 'INTERNAL_NOTE', body: 'Checking the printer logs.', submissionKey: randomUUID(),
+    });
+    const paused = await it.get(request);
+    assert.equal(paused.ticket.status, 'WAITING_CUSTOMER');
+    assert.equal(paused.resolutionSla.state, 'PAUSED');
+    assert.equal(paused.resolutionSla.dueAt, null);
+    const questions = paused.activity.filter(event => event.kind === 'WAIT_REQUESTED');
+    assert.equal(questions.length, 1);
+    assert.equal(paused.sla.firstReplyAt, questions[0].createdAt);
+    assert.deepEqual(paused.resolutionSla, (await it.get(request)).resolutionSla);
+    const queue = await it.get(itIncidentPath);
+    assert.equal(queue.find(item => item.id === created.id).sla.firstReplyAt, paused.sla.firstReplyAt);
+    const waiting = await employee.get(customer);
+    assert.equal(waiting.status, 'WAITING_CUSTOMER');
+    assert.ok(waiting.activity.some(event => event.body === ask.body));
+    assert.ok(waiting.activity.every(event => event.kind !== 'INTERNAL_NOTE'));
+    const reply = { body: 'Error code E3.', submissionKey: randomUUID() };
+    await otherEmployee.post(customer + '/messages', 404, reply);
+    const answered = await employee.post(customer + '/messages', 200, reply);
+    assert.equal(answered.status, 'IN_PROGRESS');
+    await employee.post(customer + '/messages', 200, reply);
+
+    const resumed = await it.get(request);
+    assert.equal(resumed.ticket.assignee, 'it@itsd.example');
+    assert.equal(resumed.resolutionSla.state, 'ACTIVE');
+    assert.ok(resumed.resolutionSla.dueAt);
+    assert.equal(resumed.sla.firstReplyAt, paused.sla.firstReplyAt);
+    const nextQuestion = { ...ask, submissionKey: randomUUID() };
+    await it.post(request + '/messages', 204, nextQuestion);
+    await employee.post(customer + '/messages', 200, reply);
+    assert.equal((await it.get(request)).ticket.status, 'WAITING_CUSTOMER');
+    await it.post(request + '/transfer', 204, {
+      recipient: 'it2@itsd.example', reason: 'Next shift continues the investigation.', submissionKey: randomUUID(),
+    });
+    const transferred = await secondIt.get(request);
+    assert.equal(transferred.resolutionSla.state, 'PAUSED');
+    await secondIt.post(request + '/priority', 204, { priority: 'HIGH' });
+    await secondIt.post(request + '/resolve', 204);
+    const resolved = await secondIt.get(request);
+    assert.equal(resolved.resolutionSla.targetMinutes, 480);
+    assert.equal(resolved.resolutionSla.state, 'ON_TIME');
+    assert.ok(resolved.resolutionSla.resolvedAt);
+    const lastResolution = resolved.activity.find(event => event.kind === 'RESOLVED');
+    await employee.post(customer + '/resolution-feedback', 200, {
+      resolutionId: lastResolution.id, decision: 'REOPENED', body: 'The error returned.', submissionKey: randomUUID(),
+    });
+    const reopened = await secondIt.get(request);
+    assert.equal(reopened.resolutionSla.state, 'ACTIVE');
+    assert.ok(reopened.resolutionSla.usedMinutes >= resolved.resolutionSla.usedMinutes);
+    assert.equal(reopened.sla.firstReplyAt, paused.sla.firstReplyAt);
+  });
+
   await suite.test('The requester can reopen with the original assignee and first reply', async () => {
     const created = await employee.post(incidentPath, 201, {
       title: 'CI VPN incident', description: 'The VPN drops while working remotely.',

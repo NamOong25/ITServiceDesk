@@ -105,8 +105,10 @@
 }
 .incident-event time,
 .incident-list small { display: block; color: var(--incident-quiet); margin-top: 3px; }
-.incident-event[data-kind="PUBLIC_REPLY"], .incident-event[data-kind="REQUESTER_REPLY"],
+.incident-event[data-kind="PUBLIC_REPLY"], .incident-event[data-kind="WAIT_REQUESTED"],
+.incident-event[data-kind="REQUESTER_REPLY"],
 .incident-event[data-kind="REOPENED"] { align-items: flex-start; }
+.incident-event[data-kind="WAIT_REQUESTED"] > span,
 .incident-event[data-kind="PUBLIC_REPLY"] > span { background: #e9eeff; color: #374eac; }
 .incident-event .incident-message { padding: 9px 13px; border-radius: 0 9px 9px; background: #f2f5fd; min-width: 0; }
 .incident-event .incident-message .incident-description { margin-top: 5px; }

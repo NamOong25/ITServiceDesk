@@ -4,6 +4,7 @@ import { categories, dateFormat, getItIncident, impacts, isPublicIncidentMessage
 import { IncidentSummary } from './IncidentSummary';
 import { IncidentTimeline } from './IncidentTimeline';
 import { ReplyDeadline } from './ReplyDeadline';
+import { ResolutionDeadline } from './ResolutionDeadline';
 import './employee.css';
 import './it.css';
 
@@ -130,9 +131,10 @@ function ItIncident({ detail, email, refresh, onTransferred }: {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [pending, setPending] = useState<Action | null>(null);
-  const submission = useRef<string | null>(null);
+  const submission = useRef<{ kind: MessageKind | 'WAIT_REQUESTED'; key: string } | null>(null);
   const active = useRef(false);
-  const mine = ticket.status === 'IN_PROGRESS' && ticket.assignee === email;
+  const waiting = ticket.status === 'WAITING_CUSTOMER';
+  const mine = (ticket.status === 'IN_PROGRESS' || waiting) && ticket.assignee === email;
   const priority = priorityDraft ?? ticket.priority;
   const isNote = kind === 'INTERNAL_NOTE';
   const latestReply = activity.reduce<ItDetail['activity'][number] | undefined>((latest, event) => {
@@ -153,7 +155,7 @@ function ItIncident({ detail, email, refresh, onTransferred }: {
     submission.current = null;
   }
 
-  async function act(action: Action) {
+  async function act(action: Action, messageKind: MessageKind | 'WAIT_REQUESTED' = kind) {
     if (pending || (action === 'priority' && priority === ticket.priority)) return;
     const text = body.trim();
     if (action === 'messages' && !text) {
@@ -170,9 +172,13 @@ function ItIncident({ detail, email, refresh, onTransferred }: {
     setMessage('');
     try {
       switch (action) {
-        case 'messages':
-          await sendItUpdate(ticket.id, { action, kind, body: text, submissionKey: submission.current ??= crypto.randomUUID() });
+        case 'messages': {
+          if (submission.current?.kind !== messageKind) {
+            submission.current = { kind: messageKind, key: crypto.randomUUID() };
+          }
+          await sendItUpdate(ticket.id, { action, kind: messageKind, body: text, submissionKey: submission.current.key });
           break;
+        }
         case 'priority':
           await sendItUpdate(ticket.id, { action, priority });
           break;
@@ -198,7 +204,8 @@ function ItIncident({ detail, email, refresh, onTransferred }: {
         transfer: 'Đã bàn giao sự cố cho ' + recipient + '.',
         claim: 'Bạn đã nhận xử lý sự cố.',
         resolve: 'Đã đánh dấu sự cố là đã giải quyết.',
-        messages: isNote ? 'Đã lưu ghi chú nội bộ.' : 'Đã gửi phản hồi cho nhân viên.',
+        messages: messageKind === 'WAIT_REQUESTED' ? 'Đã gửi câu hỏi và chuyển sang chờ nhân viên.'
+          : isNote ? 'Đã lưu ghi chú nội bộ.' : 'Đã gửi phản hồi cho nhân viên.',
         priority: 'Đã lưu mức ưu tiên.',
       }[action]);
       refresh();
@@ -246,6 +253,8 @@ function ItIncident({ detail, email, refresh, onTransferred }: {
             <button className="incident-primary" type="submit" disabled={!!pending}>
               {pending === 'messages' ? 'Đang lưu…' : isNote ? 'Lưu ghi chú' : 'Gửi phản hồi'}
             </button>
+            {!isNote && !waiting && <button className="secondary" type="button" disabled={!!pending}
+              onClick={() => void act('messages', 'WAIT_REQUESTED')}>Gửi và chờ phản hồi</button>}
           </div>
         </form>}
       </div>
@@ -272,6 +281,7 @@ function ItIncident({ detail, email, refresh, onTransferred }: {
           </button>
         </form>}
         <ReplyDeadline sla={detail.sla} detailed />
+        {detail.resolutionSla && <ResolutionDeadline sla={detail.resolutionSla} />}
         {ticket.status === 'NEW' && <button className="incident-primary it-side-action" type="button"
           disabled={!!pending} onClick={() => void act('claim')}>{pending === 'claim' ? 'Đang nhận…' : 'Nhận xử lý'}</button>}
         {mine && <button className="secondary it-side-action" type="button" disabled={!!pending}
@@ -334,6 +344,13 @@ export function ItPortal({ email }: { email: string }) {
     const timer = window.setInterval(() => setAttempt((current) => current + 1), 60_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (id === null) return;
+    const onFocus = () => setAttempt((current) => current + 1);
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [id]);
 
   function open(next: number | null) {
     if (next === id) return;

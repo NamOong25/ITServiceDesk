@@ -11,7 +11,7 @@ import org.springframework.web.server.ResponseStatusException;
 record IncidentActivity(long id, String kind, String actor, String body, OffsetDateTime createdAt, String recipient) {
     static final String FIRST_PUBLIC_REPLY = """
             (select min(a.created_at) from incident_activity a
-             where a.incident_id = i.id and a.kind = 'PUBLIC_REPLY')
+             where a.incident_id = i.id and a.kind in ('PUBLIC_REPLY', 'WAIT_REQUESTED'))
             """;
 
     // Callers hold the incident row lock so a retry and a new message cannot race.
@@ -42,8 +42,8 @@ record IncidentActivity(long id, String kind, String actor, String body, OffsetD
 
     static void addMessage(JdbcClient db, long id, String actor, String kind, String body, UUID key) {
         db.sql("""
-                insert into incident_activity (incident_id, actor_id, kind, body, submission_key)
-                select :id, u.id, :kind, :body, :key from app_user u where u.email = :actor
+                insert into incident_activity (incident_id, actor_id, kind, body, submission_key, created_at)
+                select :id, u.id, :kind, :body, :key, clock_timestamp() from app_user u where u.email = :actor
                 """)
                 .param("id", id)
                 .param("actor", actor)

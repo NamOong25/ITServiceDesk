@@ -187,7 +187,11 @@ function IncidentDetail({ incident, sent, onReply }: {
           {resolution && <ResolutionReview key={resolution.id} incidentId={incident.id} resolution={resolution}
             confirmed={confirmed} onReview={onReply} />}
           <IncidentTimeline createdAt={incident.createdAt} activity={incident.activity} employee>
-            {incident.status === 'IN_PROGRESS' && <RequesterReplyForm id={incident.id} onReply={onReply} />}
+            {incident.status === 'WAITING_CUSTOMER' && <p className="incident-success">
+              Đội IT đang chờ bạn bổ sung thông tin để tiếp tục xử lý.
+            </p>}
+            {(incident.status === 'IN_PROGRESS' || incident.status === 'WAITING_CUSTOMER') &&
+              <RequesterReplyForm id={incident.id} onReply={onReply} />}
           </IncidentTimeline>
         </div>
         <aside className="incident-card">
@@ -211,6 +215,7 @@ export function EmployeePortal() {
   const [error, setError] = useState('');
   const [sent, setSent] = useState<number | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const detailRequest = useRef<AbortController | null>(null);
 
   useEffect(() => {
     function onPop() {
@@ -235,10 +240,18 @@ export function EmployeePortal() {
     if (screen === 'list') {
       listIncidents(controller.signal).then((items) => { if (!controller.signal.aborted) setList(items); }, failed);
     } else {
+      detailRequest.current = controller;
       getIncident(screen, controller.signal).then((item) => { if (!controller.signal.aborted) setDetail(item); }, failed);
     }
     return () => controller.abort();
   }, [screen, attempt]);
+
+  useEffect(() => {
+    if (typeof screen !== 'number') return;
+    const onFocus = () => setAttempt((current) => current + 1);
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [screen]);
 
   function navigate(next: Screen) {
     if (next === screen) return;
@@ -257,9 +270,16 @@ export function EmployeePortal() {
     setSent(incident.id);
   }
 
+  function replied(incident: Incident) {
+    detailRequest.current?.abort();
+    setDetail(incident);
+    setError('');
+  }
+
   const back = () => navigate('list');
   const newCount = list?.filter((item) => item.status === 'NEW').length ?? 0;
   const progressCount = list?.filter((item) => item.status === 'IN_PROGRESS').length ?? 0;
+  const waitingCount = list?.filter((item) => item.status === 'WAITING_CUSTOMER').length ?? 0;
 
   return (
     <section className="employee-main">
@@ -278,8 +298,9 @@ export function EmployeePortal() {
           </a>
           {list && <div className="incident-card">
             <span className="quick-icon open-icon" aria-hidden="true">✓</span>
-            <div><h2>{newCount + progressCount} sự cố đang mở</h2>
-              <small>{newCount} mới gửi · {progressCount} đang được đội IT xử lý</small></div>
+            <div><h2>{newCount + progressCount + waitingCount} sự cố đang mở</h2>
+              <small>{newCount} mới gửi · {progressCount} đang được đội IT xử lý
+                {waitingCount > 0 && ` · ${waitingCount} đang chờ bạn trả lời`}</small></div>
           </div>}
         </div>
         {list && <section className="incident-card incident-list" aria-label="Danh sách yêu cầu">
@@ -304,7 +325,7 @@ export function EmployeePortal() {
       </>}
       {typeof screen === 'number' && <>
         <button type="button" className="incident-back" onClick={back}>← Yêu cầu của tôi</button>
-        {detail?.id === screen && <IncidentDetail key={detail.id} incident={detail} sent={sent === detail.id} onReply={setDetail} />}
+        {detail?.id === screen && <IncidentDetail key={detail.id} incident={detail} sent={sent === detail.id} onReply={replied} />}
       </>}
       {error && <div className="incident-card incident-load-status">
         <p className="form-error" role="alert">{error}</p>

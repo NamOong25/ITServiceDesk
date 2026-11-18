@@ -82,6 +82,7 @@ export async function submitResolutionFeedback(id: number, feedback: ResolutionF
 export const statusLabels = {
   NEW: 'Mới',
   IN_PROGRESS: 'Đang xử lý',
+  WAITING_CUSTOMER: 'Chờ nhân viên phản hồi',
   RESOLVED: 'Đã giải quyết',
 } as const;
 
@@ -96,7 +97,7 @@ export function ticketCode(id: number) {
 export type IncidentStatus = keyof typeof statusLabels;
 export type Activity = {
   id: number;
-  kind: 'ASSIGNED' | 'PUBLIC_REPLY' | 'REQUESTER_REPLY' | 'INTERNAL_NOTE' | 'RESOLVED' | 'CONFIRMED' | 'REOPENED' | 'TRANSFERRED';
+  kind: 'ASSIGNED' | 'PUBLIC_REPLY' | 'WAIT_REQUESTED' | 'REQUESTER_REPLY' | 'INTERNAL_NOTE' | 'RESOLVED' | 'CONFIRMED' | 'REOPENED' | 'TRANSFERRED';
   actor: string;
   body: string | null;
   createdAt: string;
@@ -104,7 +105,7 @@ export type Activity = {
 };
 
 export function isPublicIncidentMessage(kind: Activity['kind']) {
-  return kind === 'PUBLIC_REPLY' || kind === 'REQUESTER_REPLY' || kind === 'REOPENED';
+  return kind === 'PUBLIC_REPLY' || kind === 'WAIT_REQUESTED' || kind === 'REQUESTER_REPLY' || kind === 'REOPENED';
 }
 
 export const priorityLabels = {
@@ -130,12 +131,22 @@ export type ReplySla = {
   periods: { start: string; end: string }[];
 };
 
+export type ResolutionSla = {
+  state: 'ACTIVE' | 'PAUSED' | 'OVERDUE' | 'ON_TIME' | 'LATE';
+  targetMinutes: number;
+  usedMinutes: number;
+  remainingMinutes: number;
+  dueAt: string | null;
+  resolvedAt: string | null;
+};
+
 export type QueueItem = ItTicket & { sla: ReplySla };
 
 export type ItDetail = {
   ticket: ItTicket & { description: string };
   activity: Activity[];
   sla: ReplySla;
+  resolutionSla: ResolutionSla;
   savedSummary: IncidentSummaryResult | null;
   transferOptions: string[];
 };
@@ -152,7 +163,7 @@ export async function getItIncident(id: number, signal: AbortSignal): Promise<It
 
 type ItUpdate =
   | { action: 'claim' | 'resolve' }
-  | { action: 'messages'; kind: 'PUBLIC_REPLY' | 'INTERNAL_NOTE'; body: string; submissionKey: string }
+  | { action: 'messages'; kind: 'PUBLIC_REPLY' | 'INTERNAL_NOTE' | 'WAIT_REQUESTED'; body: string; submissionKey: string }
   | { action: 'priority'; priority: IncidentPriority }
   | { action: 'transfer'; recipient: string; reason: string; submissionKey: string };
 

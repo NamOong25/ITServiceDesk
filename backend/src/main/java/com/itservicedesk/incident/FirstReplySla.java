@@ -19,7 +19,7 @@ record FirstReplySla(Instant dueAt, Instant firstReplyAt, State state, long minu
     private static final long SOON_MINUTES = 30;
 
     static FirstReplySla evaluate(OffsetDateTime createdAt, OffsetDateTime firstReplyAt, Instant now) {
-        List<WorkPeriod> periods = deadlinePeriods(createdAt.toInstant());
+        List<WorkPeriod> periods = deadlinePeriods(createdAt.toInstant(), RESPONSE_TARGET);
         Instant due = periods.getLast().end();
         if (firstReplyAt != null) {
             Instant reply = firstReplyAt.toInstant();
@@ -36,9 +36,8 @@ record FirstReplySla(Instant dueAt, Instant firstReplyAt, State state, long minu
         return new FirstReplySla(due, null, minutes <= SOON_MINUTES ? State.DUE_SOON : State.PENDING, minutes, periods);
     }
 
-    private static List<WorkPeriod> deadlinePeriods(Instant created) {
+    static List<WorkPeriod> deadlinePeriods(Instant created, Duration remaining) {
         LocalDate day = created.atZone(ZONE).toLocalDate();
-        Duration remaining = RESPONSE_TARGET;
         List<WorkPeriod> periods = new ArrayList<>();
         while (!remaining.isZero()) {
             Instant start = later(created, at(day, OPEN));

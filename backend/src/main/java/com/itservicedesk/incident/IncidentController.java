@@ -64,8 +64,15 @@ class IncidentController {
         Incident incident = ownIncident(id, actor, true);
 
         if (!IncidentActivity.isMessageReplay(db, id, actor, REQUESTER_REPLY, body, message.submissionKey())) {
-            if (!"IN_PROGRESS".equals(incident.status())) throw new ResponseStatusException(HttpStatus.CONFLICT);
+            boolean waiting = "WAITING_CUSTOMER".equals(incident.status());
+            if (!waiting && !"IN_PROGRESS".equals(incident.status())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT);
+            }
             IncidentActivity.addMessage(db, id, actor, REQUESTER_REPLY, body, message.submissionKey());
+            if (waiting) {
+                db.sql("update incident set status = 'IN_PROGRESS' where id = :id").param("id", id).update();
+                incident = ownIncident(id, actor, false);
+            }
         }
         return withTimeline(incident);
     }
@@ -109,8 +116,8 @@ class IncidentController {
         }
 
         int added = db.sql("""
-                insert into incident_activity (incident_id, actor_id, kind, body, submission_key, resolution_id)
-                select :id, u.id, :kind, :body, :key, :resolutionId from app_user u where u.email = :actor
+                insert into incident_activity (incident_id, actor_id, kind, body, submission_key, resolution_id, created_at)
+                select :id, u.id, :kind, :body, :key, :resolutionId, clock_timestamp() from app_user u where u.email = :actor
                 on conflict (incident_id, actor_id, submission_key) do nothing
                 """)
                 .param("id", id)

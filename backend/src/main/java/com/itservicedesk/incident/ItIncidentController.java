@@ -80,14 +80,16 @@ class ItIncidentController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         List<IncidentActivity> activity = IncidentActivity.timeline(db, id, true);
         OffsetDateTime firstReply = activity.stream()
-                .filter(event -> "PUBLIC_REPLY".equals(event.kind()))
+                .filter(event -> "PUBLIC_REPLY".equals(event.kind()) || "WAIT_REQUESTED".equals(event.kind()))
                 .map(IncidentActivity::createdAt)
                 .findFirst()
                 .orElse(null);
-        List<String> transferOptions = "IN_PROGRESS".equals(ticket.status()) && account.getName().equals(ticket.assignee())
+        List<String> transferOptions = isOpenAssignment(ticket.status()) && account.getName().equals(ticket.assignee())
                 ? eligibleRecipients(id, account.getName()).stream().map(Recipient::email).toList()
                 : List.of();
-        return new Detail(ticket, activity, FirstReplySla.evaluate(ticket.createdAt(), firstReply, Instant.now()),
+        Instant now = Instant.now();
+        return new Detail(ticket, activity, FirstReplySla.evaluate(ticket.createdAt(), firstReply, now),
+                ResolutionSla.evaluate(ticket.impact(), ticket.createdAt(), activity, now),
                 SavedIncidentSummary.find(db, id).orElse(null), transferOptions);
     }
 
@@ -97,7 +99,7 @@ class ItIncidentController {
     public void claim(@PathVariable long id, Authentication account) {
         String actor = account.getName();
         Handling state = lockIncident(id);
-        if ("IN_PROGRESS".equals(state.status()) && actor.equals(state.assignee())) return;
+        if (isOpenAssignment(state.status()) && actor.equals(state.assignee())) return;
         requireState("NEW".equals(state.status()));
         db.sql("""
                 update incident set status = 'IN_PROGRESS',
@@ -187,6 +189,10 @@ class ItIncidentController {
         String kind = message.kind().name();
         if (IncidentActivity.isMessageReplay(db, id, actor, kind, text, message.submissionKey())) return;
         requireHandler(state, actor);
+        if (message.kind() == MessageKind.WAIT_REQUESTED) {
+            requireState("IN_PROGRESS".equals(state.status()));
+            db.sql("update incident set status = 'WAITING_CUSTOMER' where id = :id").param("id", id).update();
+        }
         IncidentActivity.addMessage(db, id, actor, kind, text, message.submissionKey());
     }
 
@@ -204,8 +210,8 @@ class ItIncidentController {
 
     private void recordTransition(long id, String actor, String kind) {
         db.sql("""
-                insert into incident_activity (incident_id, actor_id, kind)
-                select :id, id, :kind from app_user where email = :actor
+                insert into incident_activity (incident_id, actor_id, kind, created_at)
+                select :id, id, :kind, clock_timestamp() from app_user where email = :actor
                 """)
                 .param("id", id)
                 .param("actor", actor)
@@ -215,7 +221,11 @@ class ItIncidentController {
 
     private static void requireHandler(Handling state, String actor) {
         if (!actor.equals(state.assignee())) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        requireState("IN_PROGRESS".equals(state.status()));
+        requireState(isOpenAssignment(state.status()));
+    }
+
+    private static boolean isOpenAssignment(String status) {
+        return "IN_PROGRESS".equals(status) || "WAITING_CUSTOMER".equals(status);
     }
 
     private static void requireState(boolean valid) {
@@ -223,7 +233,7 @@ class ItIncidentController {
     }
 
     enum Priority { HIGH, MEDIUM, LOW }
-    enum MessageKind { PUBLIC_REPLY, INTERNAL_NOTE }
+    enum MessageKind { PUBLIC_REPLY, WAIT_REQUESTED, INTERNAL_NOTE }
     record PriorityUpdate(Priority priority) {}
     record Transfer(String recipient, String reason, UUID submissionKey) {}
     private record Recipient(long id, String email) {}
@@ -236,6 +246,6 @@ class ItIncidentController {
     }
     record Ticket(long id, String title, String category, String impact, String status,
                   OffsetDateTime createdAt, String requester, String assignee, Priority priority, String description) {}
-    record Detail(Ticket ticket, List<IncidentActivity> activity, FirstReplySla sla,
+    record Detail(Ticket ticket, List<IncidentActivity> activity, FirstReplySla sla, ResolutionSla resolutionSla,
                   SavedIncidentSummary savedSummary, List<String> transferOptions) {}
 }
