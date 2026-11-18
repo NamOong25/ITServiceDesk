@@ -7,8 +7,10 @@ import java.sql.Types;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Isolation;
@@ -17,9 +19,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
@@ -40,10 +44,12 @@ class IncidentController {
 
     private final JdbcClient db;
     private final NotificationPublisher notifications;
+    private final IncidentAttachments attachments;
 
-    IncidentController(JdbcClient db, NotificationPublisher notifications) {
+    IncidentController(JdbcClient db, NotificationPublisher notifications, IncidentAttachments attachments) {
         this.db = db;
         this.notifications = notifications;
+        this.attachments = attachments;
     }
 
     @GetMapping
@@ -59,30 +65,45 @@ class IncidentController {
     @GetMapping("/{id}")
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public Incident detail(Authentication account, @PathVariable long id) {
-        return withTimeline(ownIncident(id, account.getName(), false));
+        return withTimeline(ownIncident(id, account.getName(), false), account.getName());
     }
 
-    @PostMapping("/{id}/messages")
+    @PostMapping(value = "/{id}/messages", consumes = MediaType.APPLICATION_JSON_VALUE)
     @Transactional
     public Incident reply(Authentication account, @PathVariable long id, @RequestBody Reply message) {
+        return reply(account, id, message, List.of());
+    }
+
+    @PostMapping(value = "/{id}/messages", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Transactional
+    public Incident replyWithFiles(Authentication account, @PathVariable long id, @RequestPart("data") Reply message,
+                                   @RequestPart(value = "files", required = false) List<MultipartFile> files) {
+        return reply(account, id, message, attachments.readUploads(files));
+    }
+
+    private Incident reply(Authentication account, long id, Reply message, List<IncidentAttachments.Upload> files) {
         if (message.submissionKey() == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         String body = requiredText(message.body(), 4000);
         String actor = account.getName();
         Incident incident = ownIncident(id, actor, true);
 
-        if (!IncidentActivity.isMessageReplay(db, id, actor, REQUESTER_REPLY, body, message.submissionKey())) {
+        var previous = IncidentActivity.replayId(db, id, actor, REQUESTER_REPLY, body, null, message.submissionKey());
+        if (previous.isPresent()) {
+            attachments.verifyRetry(id, previous.get(), files);
+        } else {
             boolean waiting = "WAITING_CUSTOMER".equals(incident.status());
             if (!waiting && !"IN_PROGRESS".equals(incident.status())) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT);
             }
             long activity = IncidentActivity.addMessage(db, id, actor, REQUESTER_REPLY, body, message.submissionKey());
+            attachments.save(id, activity, files);
             if (waiting) {
                 db.sql("update incident set status = 'IN_PROGRESS' where id = :id").param("id", id).update();
                 incident = ownIncident(id, actor, false);
                 notifications.incidentActivity(activity);
             }
         }
-        return withTimeline(incident);
+        return withTimeline(incident, actor);
     }
 
     @PostMapping("/{id}/resolution-feedback")
@@ -111,7 +132,7 @@ class IncidentController {
                     || !Objects.equals(stored.body(), body)) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT);
             }
-            return withTimeline(incident);
+            return withTimeline(incident, actor);
         }
 
         long latestResolution = db.sql("select id from incident_activity where incident_id = :id and kind = 'RESOLVED' order by id desc limit 1")
@@ -141,7 +162,7 @@ class IncidentController {
             db.sql("update incident set status = 'IN_PROGRESS' where id = :id").param("id", id).update();
             incident = ownIncident(id, actor, false);
         }
-        return withTimeline(incident);
+        return withTimeline(incident, actor);
     }
 
     private Incident ownIncident(long id, String email, boolean lock) {
@@ -153,18 +174,31 @@ class IncidentController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 
-    private Incident withTimeline(Incident incident) {
+    private Incident withTimeline(Incident incident, String actor) {
         return new Incident(incident.id(), incident.title(), incident.category(), incident.impact(),
                 incident.description(), incident.status(), incident.createdAt(), incident.assignee(),
                 incident.knowledgeArticleId(), incident.knowledgeArticleTitle(),
                 incident.assetId(), incident.assetCode(), incident.assetName(),
-                IncidentActivity.timeline(db, incident.id(), false));
+                IncidentActivity.timeline(db, incident.id(), false),
+                attachments.visible(incident.id(), actor, false));
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     @Transactional
     public Incident create(Authentication account, @RequestBody Submission submission) {
+        return create(account, submission, List.of());
+    }
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    @Transactional
+    public Incident createWithFiles(Authentication account, @RequestPart("data") Submission submission,
+                                    @RequestPart(value = "files", required = false) List<MultipartFile> files) {
+        return create(account, submission, attachments.readUploads(files));
+    }
+
+    private Incident create(Authentication account, Submission submission, List<IncidentAttachments.Upload> files) {
         if (submission.submissionKey() == null || submission.category() == null || submission.impact() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
@@ -184,24 +218,16 @@ class IncidentController {
                 for share of a
                 """).param("id", assetId).param("email", email).query(Long.class).optional().isEmpty()) {
             // A valid retry can arrive after the device has been reassigned.
-            Incident previous = db.sql(OWN_INCIDENTS + "and i.submission_key = :key")
-                    .param("email", email).param("key", submission.submissionKey())
-                    .query(IncidentController::readIncident).optional()
+            Incident previous = previousSubmission(email, submission.submissionKey())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST));
-            return validateSubmission(previous, submission, title, description);
+            return verifyRetry(previous, submission, title, description, email, files);
         }
-        Incident incident = db.sql("""
+        var inserted = db.sql("""
                 insert into incident (requester_id, submission_key, title, category, impact, description, knowledge_article_id, asset_id)
                 select u.id, :submissionKey, :title, :category, :impact, :description, :article, :asset
                 from app_user u where u.email = :email
-                on conflict (requester_id, submission_key)
-                do update set submission_key = excluded.submission_key
-                returning id, title, category, impact, description, status, created_at,
-                    (select email from app_user where id = incident.assignee_id) as assignee,
-                    knowledge_article_id,
-                    (select title from knowledge_article where id = incident.knowledge_article_id) as knowledge_article_title,
-                    asset_id, (select code from asset where id = incident.asset_id) as asset_code,
-                    (select name from asset where id = incident.asset_id) as asset_name
+                on conflict (requester_id, submission_key) do nothing
+                returning id
                 """)
                 .param("email", email)
                 .param("submissionKey", submission.submissionKey())
@@ -211,14 +237,25 @@ class IncidentController {
                 .param("article", articleId, Types.BIGINT)
                 .param("asset", assetId, Types.BIGINT)
                 .param("description", description)
-                .query(IncidentController::readIncident)
-                .optional()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+                .query(Long.class).optional();
 
-        return validateSubmission(incident, submission, title, description);
+        if (inserted.isPresent()) {
+            long id = inserted.get();
+            attachments.save(id, null, files);
+            return withTimeline(ownIncident(id, email, false), email);
+        }
+        Incident previous = previousSubmission(email, submission.submissionKey())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+        return verifyRetry(previous, submission, title, description, email, files);
     }
 
-    private static Incident validateSubmission(Incident incident, Submission submission, String title, String description) {
+    private Optional<Incident> previousSubmission(String email, UUID key) {
+        return db.sql(OWN_INCIDENTS + "and i.submission_key = :key")
+                .param("email", email).param("key", key).query(IncidentController::readIncident).optional();
+    }
+
+    private Incident verifyRetry(Incident incident, Submission submission, String title, String description,
+                                 String email, List<IncidentAttachments.Upload> files) {
         if (!incident.title().equals(title) || !incident.description().equals(description)
                 || !incident.category().equals(submission.category().name())
                 || !incident.impact().equals(submission.impact().name())
@@ -226,7 +263,8 @@ class IncidentController {
                 || !Objects.equals(incident.assetId(), submission.assetId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT);
         }
-        return incident;
+        attachments.verifyRetry(incident.id(), null, files);
+        return withTimeline(incident, email);
     }
 
     private static Incident readIncident(ResultSet row, int index) throws SQLException {
@@ -234,7 +272,7 @@ class IncidentController {
                 row.getString("impact"), row.getString("description"), row.getString("status"),
                 row.getObject("created_at", OffsetDateTime.class), row.getString("assignee"),
                 row.getObject("knowledge_article_id", Long.class), row.getString("knowledge_article_title"),
-                row.getObject("asset_id", Long.class), row.getString("asset_code"), row.getString("asset_name"), List.of());
+                row.getObject("asset_id", Long.class), row.getString("asset_code"), row.getString("asset_name"), List.of(), List.of());
     }
 
     static String requiredText(String value, int maxLength) {
@@ -260,5 +298,5 @@ class IncidentController {
     record Incident(long id, String title, String category, String impact, String description,
                     String status, OffsetDateTime createdAt, String assignee, Long knowledgeArticleId,
                     String knowledgeArticleTitle, Long assetId, String assetCode, String assetName,
-                    List<IncidentActivity> activity) {}
+                    List<IncidentActivity> activity, List<IncidentAttachments.Attachment> attachments) {}
 }

@@ -90,3 +90,9 @@ Dùng hai cửa sổ riêng khi thử. Nhân viên tạo một yêu cầu cấp 
 2. Đăng nhập nhân viên demo, mở **Báo sự cố**, chọn **DEMO-LT-01** ở trường **Thiết bị liên quan** và gửi yêu cầu mới.
 3. Dùng tài khoản IT mở yêu cầu vừa tạo. Bấm **Xem lịch sử** ở phần **Thiết bị liên quan** để xem cả yêu cầu mới và lần xử lý trước.
 4. Trong trang thiết bị, thử **Chỉnh sửa** và đổi sang **Bảo trì**. Thiết bị rời danh sách có thể chọn của nhân viên, còn các sự cố trước vẫn truy cập được từ lịch sử.
+
+## 10. Ảnh và tệp đính kèm sự cố
+
+1. Nhân viên báo một sự cố hoặc mở sự cố đang chờ rồi trả lời IT. Chọn **Tệp đính kèm** để tải ảnh lỗi (PNG hoặc JPG) hay PDF. Mỗi lần gửi được tối đa 3 tệp, mỗi tệp tối đa 5 MB.
+2. Ở cổng IT, xem ảnh dưới mô tả hoặc trong đúng mục phản hồi. Bấm ảnh để mở kích thước đầy đủ. Bấm tên PDF để tải xuống.
+3. Thử đính kèm một tệp vào **Ghi chú nội bộ**. Khi xem bằng tài khoản nhân viên, lịch sử chỉ chứa nội dung và tệp công khai của sự cố.

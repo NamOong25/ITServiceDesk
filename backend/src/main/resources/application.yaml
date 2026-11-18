@@ -1,6 +1,10 @@
 spring:
   application:
     name: it-service-desk
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 16MB
   datasource:
     url: ${ITSD_DB_URL:jdbc:postgresql://127.0.0.1:5433/it_service_desk}
     username: ${ITSD_DB_USER:itsd}

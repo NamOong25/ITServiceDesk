@@ -20,7 +20,7 @@ function vietnamTime(instant) {
 async function login(email, role) {
   const cookies = new Map();
 
-  async function request(path, options, expectedStatus) {
+  async function request(path, options, expectedStatus, raw = false) {
     const headers = new Headers(options.headers);
     if (cookies.size) {
       headers.set('Cookie', [...cookies].map(([name, value]) => name + '=' + value).join('; '));
@@ -34,24 +34,30 @@ async function login(email, role) {
       cookies.set(pair.slice(0, separator), pair.slice(separator + 1));
     }
     assert.equal(response.status, expectedStatus, (options.method ?? 'GET') + ' ' + path + ' for ' + role);
+    if (raw) return response;
     return response.status !== 204 && response.ok ? response.json() : undefined;
   }
 
   async function post(path, expectedStatus, data) {
     const csrf = await request('/api/auth/csrf', {}, 200);
     const form = data instanceof URLSearchParams;
+    const multipart = data instanceof FormData;
     const headers = { [csrf.headerName]: csrf.token };
-    if (data !== undefined) {
+    if (data !== undefined && !multipart) {
       headers['Content-Type'] = form ? 'application/x-www-form-urlencoded' : 'application/json';
     }
-    const body = form || data === undefined ? data : JSON.stringify(data);
+    const body = form || multipart || data === undefined ? data : JSON.stringify(data);
     return request(path, { method: 'POST', headers, body }, expectedStatus);
   }
 
   await post('/api/auth/login', 204, new URLSearchParams({ email, password: 'DemoItsd-2026!' }));
   const account = await request('/api/auth/me', {}, 200);
   assert.equal(account.role, role);
-  return { get: (path, expectedStatus = 200) => request(path, {}, expectedStatus), post };
+  return {
+    get: (path, expectedStatus = 200) => request(path, {}, expectedStatus),
+    download: (path, expectedStatus = 200) => request(path, {}, expectedStatus, true),
+    post,
+  };
 }
 
 test('IT Service Desk API', { timeout: 60_000 }, async (suite) => {
@@ -390,6 +396,71 @@ test('IT Service Desk API', { timeout: 60_000 }, async (suite) => {
     await it.post(edit, 200, { ...draft, status: 'MAINTENANCE', assignedToId: null, revision: reassigned.revision });
     assert.ok((await otherEmployee.get(mine)).every(item => item.id !== asset.id));
     assert.equal((await it.get(root + '/' + asset.id)).history.length, 2);
+  });
+
+  await suite.test('Incident attachments stay with their message and respect ownership and internal notes', async () => {
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jB9sAAAAASUVORK5CYII=', 'base64',
+    );
+    const pdf = Buffer.from('%PDF-1.4\n%%EOF\n');
+    const upload = (message, files) => {
+      const form = new FormData();
+      form.append('data', new Blob([JSON.stringify(message)], { type: 'application/json' }));
+      files.forEach(({ contents, name, type }) => form.append('files', new Blob([contents], { type }), name));
+      return form;
+    };
+    const screenshot = { contents: png, name: 'error.png', type: 'image/png' };
+    const privateFile = { contents: pdf, name: 'internal.pdf', type: 'application/pdf' };
+    const report = { title: 'CI attachment screenshot', category: 'DEVICE', impact: 'PERSONAL',
+      description: 'Reported with evidence.', submissionKey: randomUUID() };
+
+    await employee.post(incidentPath, 415, upload(report, [{ ...screenshot, contents: 'not an image' }]));
+    await employee.post(incidentPath, 413, upload(report, Array(4).fill(screenshot)));
+    await employee.post(incidentPath, 413, upload(report, [{ ...screenshot, contents: Buffer.alloc(5 * 1024 * 1024 + 1) }]));
+    assert.ok((await employee.get(incidentPath)).every(issue => issue.title !== report.title));
+
+    const created = await employee.post(incidentPath, 201, upload(report, [screenshot]));
+    assert.equal((await employee.post(incidentPath, 201, upload(report, [screenshot]))).id, created.id);
+    await employee.post(incidentPath, 409, upload(report, [{ ...screenshot, name: 'different.png' }]));
+    const customer = incidentPath + '/' + created.id;
+    const work = itIncidentPath + '/' + created.id;
+    const issue = await employee.get(customer);
+    assert.equal(issue.attachments.length, 1);
+    const original = issue.attachments[0];
+    assert.equal(original.activityId, null);
+    const originalUrl = customer + '/attachments/' + original.id;
+    const downloaded = await employee.download(originalUrl);
+    assert.equal(downloaded.headers.get('Content-Type'), 'image/png');
+    assert.match(downloaded.headers.get('Content-Disposition'), /^inline;/i);
+    assert.deepEqual(Buffer.from(await downloaded.arrayBuffer()), png);
+    await otherEmployee.download(originalUrl, 404);
+    await employee.download(work + '/attachments/' + original.id, 403);
+
+    await it.post(work + '/claim', 204);
+    await it.post(work + '/messages', 204, {
+      kind: 'WAIT_REQUESTED', body: 'Please send the error screenshot.', submissionKey: randomUUID(),
+    });
+    const reply = { body: 'Attached is the screenshot.', submissionKey: randomUUID() };
+    await employee.post(customer + '/messages', 200, upload(reply, [screenshot]));
+    await employee.post(customer + '/messages', 200, upload(reply, [screenshot]));
+    await employee.post(customer + '/messages', 409, reply);
+    const note = { kind: 'INTERNAL_NOTE', body: 'Internal diagnostics.', submissionKey: randomUUID() };
+    await it.post(work + '/messages', 204, upload(note, [privateFile]));
+    await it.post(work + '/messages', 204, upload(note, [privateFile]));
+
+    const updated = await it.get(work);
+    assert.equal(updated.ticket.status, 'IN_PROGRESS');
+    assert.equal(updated.attachments.length, 3);
+    const replyActivity = updated.activity.find(event => event.kind === 'REQUESTER_REPLY');
+    const noteActivity = updated.activity.find(event => event.kind === 'INTERNAL_NOTE');
+    assert.ok(updated.attachments.some(file => file.activityId === replyActivity.id));
+    const hidden = updated.attachments.find(file => file.activityId === noteActivity.id);
+    const approvedDownload = await it.download(work + '/attachments/' + hidden.id);
+    assert.match(approvedDownload.headers.get('Content-Disposition'), /^attachment;/i);
+    assert.deepEqual(Buffer.from(await approvedDownload.arrayBuffer()), pdf);
+    await employee.download(customer + '/attachments/' + hidden.id, 404);
+    await manager.download(work + '/attachments/' + hidden.id, 403);
+    assert.equal((await employee.get(customer)).attachments.length, 2);
   });
 
   await suite.test('Manager dashboard separates SLA counters and only exposes team incidents', async () => {

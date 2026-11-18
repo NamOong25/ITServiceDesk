@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { categories, createIncident, dateFormat, getIncident, impacts, listIncidents, replyToIncident, statusLabels, ticketCode,
   type Draft, type Incident, type IncidentSummary } from './api';
 import { IncidentTimeline } from './IncidentTimeline';
+import { AttachmentList, AttachmentPicker } from './Attachments';
 import { ResolutionReview } from './ResolutionReview';
 import { getArticle, type Article } from '../knowledge/api';
 import { AttachedArticle } from '../knowledge/KnowledgePortal';
@@ -22,6 +23,7 @@ function IncidentForm({ onCreated, onBack }: {
   onCreated: (incident: Incident) => void; onBack: () => void;
 }) {
   const [draft, setDraft] = useState<Draft>({ title: '', category: '', impact: '', description: '', assetId: null });
+  const [files, setFiles] = useState<File[]>([]);
   const [assets, setAssets] = useState<AssetChoice[]>([]);
   const [assetError, setAssetError] = useState(false);
   const [articleId, setArticleId] = useState(() => {
@@ -89,7 +91,7 @@ function IncidentForm({ onCreated, onBack }: {
     setError('');
     try {
       const key = submissionKey.current ??= crypto.randomUUID();
-      const incident = await createIncident(draft, key, article?.id ?? null);
+      const incident = await createIncident(draft, key, article?.id ?? null, files);
       if (mounted.current) onCreated(incident);
     } catch (failure) {
       setError(failure instanceof TypeError ? 'Mất kết nối. Bạn có thể thử gửi lại yêu cầu.'
@@ -143,6 +145,10 @@ function IncidentForm({ onCreated, onBack }: {
             <label htmlFor="description">Mô tả sự cố</label>
             <textarea id="description" rows={4} value={draft.description}
               onChange={(e) => update({ description: e.target.value })} required maxLength={4000} />
+            <AttachmentPicker id="incident-files" files={files} onChange={(value) => {
+              submissionKey.current = null;
+              setFiles(value);
+            }} />
             {articleId !== null && <div className="knowledge-attachment">
               {article ? <><strong>Hướng dẫn đã thử</strong><a href={'/knowledge/' + article.id}>{article.title}</a></>
                 : <span role={articleError ? 'alert' : 'status'}>
@@ -170,6 +176,7 @@ function IncidentForm({ onCreated, onBack }: {
 
 function RequesterReplyForm({ id, onReply }: { id: number; onReply: (incident: Incident) => void }) {
   const [draft, setDraft] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const submissionKey = useRef<string | null>(null);
@@ -190,10 +197,11 @@ function RequesterReplyForm({ id, onReply }: { id: number; onReply: (incident: I
 
     try {
       const key = submissionKey.current ??= crypto.randomUUID();
-      const updated = await replyToIncident(id, draft.trim(), key);
+      const updated = await replyToIncident(id, draft.trim(), key, files);
       if (!mounted.current) return;
       submissionKey.current = null;
       setDraft('');
+      setFiles([]);
       onReply(updated);
     } catch (failure) {
       if (mounted.current) setError(failure instanceof TypeError ? 'Mất kết nối. Bạn có thể thử gửi lại.'
@@ -213,6 +221,11 @@ function RequesterReplyForm({ id, onReply }: { id: number; onReply: (incident: I
         setDraft(event.target.value);
         setError('');
       }} />
+    <AttachmentPicker id="requester-files" files={files} disabled={pending} onChange={(value) => {
+      submissionKey.current = null;
+      setFiles(value);
+      setError('');
+    }} />
     {error && <p className="form-error" role="alert">{error}</p>}
     <div className="requester-reply-actions">
       <small>Đội IT sẽ thấy phản hồi trong sự cố này.</small>
@@ -243,6 +256,7 @@ function IncidentDetail({ incident, sent, onReply }: {
         <div>
           <article className="incident-card">
             <h2>Mô tả sự cố</h2><p className="incident-description">{incident.description}</p>
+            <AttachmentList incidentId={incident.id} files={incident.attachments?.filter((file) => file.activityId === null)} />
             {incident.assetCode && <div className="asset-reference">
               <strong>Thiết bị liên quan</strong><span>{incident.assetCode} · {incident.assetName}</span>
             </div>}
@@ -251,7 +265,8 @@ function IncidentDetail({ incident, sent, onReply }: {
           </article>
           {resolution && <ResolutionReview key={resolution.id} incidentId={incident.id} resolution={resolution}
             confirmed={confirmed} onReview={onReply} />}
-          <IncidentTimeline createdAt={incident.createdAt} activity={incident.activity} employee>
+          <IncidentTimeline createdAt={incident.createdAt} activity={incident.activity} employee
+            attachments={{ incidentId: incident.id, files: incident.attachments }}>
             {incident.status === 'WAITING_CUSTOMER' && <p className="incident-success">
               Đội IT đang chờ bạn bổ sung thông tin để tiếp tục xử lý.
             </p>}

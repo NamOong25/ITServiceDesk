@@ -7,7 +7,7 @@ export async function currentAccount(signal?: AbortSignal): Promise<Account | nu
   return response.json();
 }
 
-export async function postWithCsrf(path: string, body?: URLSearchParams | string): Promise<Response> {
+export async function postWithCsrf(path: string, body?: URLSearchParams | FormData | string): Promise<Response> {
   const response = await fetch('/api/auth/csrf');
   if (!response.ok) throw new Error('Không kết nối được hệ thống. Vui lòng thử lại.');
   const csrf: { headerName: string; token: string } = await response.json();

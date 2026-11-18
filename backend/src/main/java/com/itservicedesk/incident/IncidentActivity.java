@@ -3,6 +3,7 @@ package com.itservicedesk.incident;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -22,13 +23,13 @@ record IncidentActivity(long id, String kind, String actor, String body, OffsetD
     }
 
     // Callers hold the incident row lock so a retry and a new message cannot race.
-    static boolean isMessageReplay(JdbcClient db, long id, String actor, String kind, String body, UUID key) {
-        return isReplay(db, id, actor, kind, body, null, key);
+    static boolean isReplay(JdbcClient db, long id, String actor, String kind, String body, String recipient, UUID key) {
+        return replayId(db, id, actor, kind, body, recipient, key).isPresent();
     }
 
-    static boolean isReplay(JdbcClient db, long id, String actor, String kind, String body, String recipient, UUID key) {
+    static Optional<Long> replayId(JdbcClient db, long id, String actor, String kind, String body, String recipient, UUID key) {
         var previous = db.sql("""
-                select a.kind, a.body, target.email as recipient
+                select a.id, a.kind, a.body, target.email as recipient
                 from incident_activity a join app_user u on u.id = a.actor_id
                 left join app_user target on target.id = a.recipient_id
                 where a.incident_id = :id and u.email = :actor and a.submission_key = :key
@@ -38,13 +39,13 @@ record IncidentActivity(long id, String kind, String actor, String body, OffsetD
                 .param("key", key)
                 .query(PreviousMessage.class)
                 .optional();
-        if (previous.isEmpty()) return false;
+        if (previous.isEmpty()) return Optional.empty();
         PreviousMessage message = previous.get();
         if (!message.kind().equals(kind) || !Objects.equals(message.body(), body)
                 || !Objects.equals(message.recipient(), recipient)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT);
         }
-        return true;
+        return Optional.of(message.id());
     }
 
     static long addMessage(JdbcClient db, long id, String actor, String kind, String body, UUID key) {
@@ -61,7 +62,7 @@ record IncidentActivity(long id, String kind, String actor, String body, OffsetD
                 .query(Long.class).single();
     }
 
-    private record PreviousMessage(String kind, String body, String recipient) {}
+    private record PreviousMessage(long id, String kind, String body, String recipient) {}
 
     static List<IncidentActivity> timeline(JdbcClient db, long incidentId, boolean includeInternal) {
         return db.sql("""

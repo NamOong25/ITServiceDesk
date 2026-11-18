@@ -3,6 +3,7 @@ import { categories, dateFormat, getItIncident, impacts, isPublicIncidentMessage
   statusLabels, ticketCode, type IncidentPriority, type IncidentStatus, type ItDetail, type QueueItem } from './api';
 import { IncidentSummary } from './IncidentSummary';
 import { IncidentTimeline } from './IncidentTimeline';
+import { AttachmentList, AttachmentPicker } from './Attachments';
 import { ReplyDeadline } from './ReplyDeadline';
 import { ResolutionDeadline } from './ResolutionDeadline';
 import { AttachedArticle, DraftArticleButton } from '../knowledge/KnowledgePortal';
@@ -125,6 +126,7 @@ function ItIncident({ detail, email, refresh, onTransferred }: {
   const { ticket, activity, savedSummary, transferOptions } = detail;
   const [kind, setKind] = useState<MessageKind>('PUBLIC_REPLY');
   const [body, setBody] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
   const [priorityDraft, setPriorityDraft] = useState<IncidentPriority | null>(null);
   const [recipient, setRecipient] = useState('');
   const [transferReason, setTransferReason] = useState('');
@@ -152,6 +154,7 @@ function ItIncident({ detail, email, refresh, onTransferred }: {
     if (next === kind) return;
     setKind(next);
     setBody('');
+    setFiles([]);
     setError('');
     submission.current = null;
   }
@@ -177,7 +180,7 @@ function ItIncident({ detail, email, refresh, onTransferred }: {
           if (submission.current?.kind !== messageKind) {
             submission.current = { kind: messageKind, key: crypto.randomUUID() };
           }
-          await sendItUpdate(ticket.id, { action, kind: messageKind, body: text, submissionKey: submission.current.key });
+          await sendItUpdate(ticket.id, { action, kind: messageKind, body: text, submissionKey: submission.current.key }, files);
           break;
         }
         case 'priority':
@@ -192,6 +195,7 @@ function ItIncident({ detail, email, refresh, onTransferred }: {
       if (!active.current) return;
       if (action === 'messages') {
         setBody('');
+        setFiles([]);
         submission.current = null;
       }
       if (action === 'priority') setPriorityDraft(null);
@@ -236,6 +240,7 @@ function ItIncident({ detail, email, refresh, onTransferred }: {
       <div>
         <article className="incident-card">
           <h2>Mô tả sự cố</h2><p className="incident-description">{ticket.description}</p>
+          <AttachmentList incidentId={ticket.id} files={detail.attachments?.filter((file) => file.activityId === null)} staff />
           {ticket.assetId && <div className="asset-reference asset-reference--linked">
             <div className="asset-reference-details">
               <span className="asset-reference-label">Thiết bị liên quan</span>
@@ -250,7 +255,8 @@ function ItIncident({ detail, email, refresh, onTransferred }: {
             <AttachedArticle id={ticket.knowledgeArticleId} title={ticket.knowledgeArticleTitle} />}
         </article>
         <IncidentSummary incidentId={ticket.id} saved={savedSummary} latestReply={latestReply} />
-        <IncidentTimeline createdAt={ticket.createdAt} activity={activity} />
+        <IncidentTimeline createdAt={ticket.createdAt} activity={activity}
+          attachments={{ incidentId: ticket.id, files: detail.attachments, staff: true }} />
         {mine && <form className="incident-card it-composer" onSubmit={send}>
           <div className="it-composer-tabs" role="group" aria-label="Loại nội dung">
             <button type="button" aria-pressed={!isNote} disabled={!!pending}
@@ -262,6 +268,11 @@ function ItIncident({ detail, email, refresh, onTransferred }: {
           <label htmlFor="it-message">{isNote ? 'Nội dung ghi chú nội bộ' : 'Nội dung phản hồi'}</label>
           <textarea id="it-message" rows={3} maxLength={4000} value={body} disabled={!!pending}
             onChange={(event) => { setBody(event.target.value); submission.current = null; }} />
+          <AttachmentPicker key={kind} id="it-message-files" files={files} disabled={!!pending} onChange={(value) => {
+            submission.current = null;
+            setFiles(value);
+            setError('');
+          }} />
           <div className="incident-actions">
             <button className="incident-primary" type="submit" disabled={!!pending}>
               {pending === 'messages' ? 'Đang lưu…' : isNote ? 'Lưu ghi chú' : 'Gửi phản hồi'}

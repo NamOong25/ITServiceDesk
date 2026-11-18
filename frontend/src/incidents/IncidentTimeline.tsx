@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { dateFormat, isPublicIncidentMessage, type Activity } from './api';
+import { dateFormat, isPublicIncidentMessage, type Activity, type IncidentAttachment } from './api';
+import { AttachmentList } from './Attachments';
 
 const labels = {
   ASSIGNED: 'Đã nhận xử lý',
@@ -19,8 +20,9 @@ const requesterLabels = {
   REOPENED: 'Bạn đã mở lại sự cố',
 } as const;
 
-export function IncidentTimeline({ createdAt, activity, employee = false, children }: {
+export function IncidentTimeline({ createdAt, activity, employee = false, children, attachments }: {
   createdAt: string; activity: Activity[]; employee?: boolean; children?: ReactNode;
+  attachments?: { incidentId: number; files?: IncidentAttachment[]; staff?: boolean };
 }) {
   const firstReplyId = activity.find((item) => item.kind === 'PUBLIC_REPLY' || item.kind === 'WAIT_REQUESTED')?.id;
   return (
@@ -48,6 +50,8 @@ export function IncidentTimeline({ createdAt, activity, employee = false, childr
               : !(employee && fromRequester) && <div className="incident-actor">{item.actor}</div>}
             <time dateTime={item.createdAt}>{dateFormat.format(new Date(item.createdAt))}</time>
             {item.body && <p className="incident-description">{item.body}</p>}
+            {attachments && <AttachmentList incidentId={attachments.incidentId} staff={attachments.staff}
+              files={attachments.files?.filter((file) => file.activityId === item.id)} />}
           </div>
         </div>;
       })}

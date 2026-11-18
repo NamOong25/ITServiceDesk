@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Isolation;
@@ -16,9 +17,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
@@ -47,12 +50,14 @@ class ItIncidentController {
 
     private final JdbcClient db;
     private final NotificationPublisher notifications;
+    private final IncidentAttachments attachments;
     private final boolean demoEnabled;
 
-    ItIncidentController(JdbcClient db, NotificationPublisher notifications,
+    ItIncidentController(JdbcClient db, NotificationPublisher notifications, IncidentAttachments attachments,
                          @Value("${itsd.demo.enabled:false}") boolean demoEnabled) {
         this.db = db;
         this.notifications = notifications;
+        this.attachments = attachments;
         this.demoEnabled = demoEnabled;
     }
 
@@ -93,7 +98,7 @@ class ItIncidentController {
         Instant now = Instant.now();
         return new Detail(ticket, activity, FirstReplySla.evaluate(ticket.createdAt(), firstReply, now),
                 ResolutionSla.fromTimeline(ticket.impact(), ticket.createdAt(), activity, now),
-                SavedIncidentSummary.find(db, id).orElse(null), transferOptions);
+                SavedIncidentSummary.find(db, id).orElse(null), transferOptions, attachments.visible(id, null, true));
     }
 
     @PostMapping("/{id}/claim")
@@ -181,10 +186,22 @@ class ItIncidentController {
                 .update();
     }
 
-    @PostMapping("/{id}/messages")
+    @PostMapping(value = "/{id}/messages", consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Transactional
     public void message(@PathVariable long id, Authentication account, @RequestBody Message message) {
+        message(id, account, message, List.of());
+    }
+
+    @PostMapping(value = "/{id}/messages", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Transactional
+    public void messageWithFiles(@PathVariable long id, Authentication account, @RequestPart("data") Message message,
+                                 @RequestPart(value = "files", required = false) List<MultipartFile> files) {
+        message(id, account, message, attachments.readUploads(files));
+    }
+
+    private void message(long id, Authentication account, Message message, List<IncidentAttachments.Upload> files) {
         if (message.kind() == null || message.submissionKey() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
         }
@@ -192,13 +209,18 @@ class ItIncidentController {
         String actor = account.getName();
         Handling state = lockIncident(id);
         String kind = message.kind().name();
-        if (IncidentActivity.isMessageReplay(db, id, actor, kind, text, message.submissionKey())) return;
+        var previous = IncidentActivity.replayId(db, id, actor, kind, text, null, message.submissionKey());
+        if (previous.isPresent()) {
+            attachments.verifyRetry(id, previous.get(), files);
+            return;
+        }
         requireHandler(state, actor);
         if (message.kind() == MessageKind.WAIT_REQUESTED) {
             requireState("IN_PROGRESS".equals(state.status()));
             db.sql("update incident set status = 'WAITING_CUSTOMER' where id = :id").param("id", id).update();
         }
         long activity = IncidentActivity.addMessage(db, id, actor, kind, text, message.submissionKey());
+        attachments.save(id, activity, files);
         if (message.kind() == MessageKind.WAIT_REQUESTED) notifications.incidentActivity(activity);
     }
 
@@ -256,5 +278,5 @@ class ItIncidentController {
                   Long knowledgeArticleId, String knowledgeArticleTitle, Long assetId, String assetCode,
                   String assetName) {}
     record Detail(Ticket ticket, List<IncidentActivity> activity, FirstReplySla sla, ResolutionSla resolutionSla,
-                  SavedIncidentSummary savedSummary, List<String> transferOptions) {}
+                  SavedIncidentSummary savedSummary, List<String> transferOptions, List<IncidentAttachments.Attachment> attachments) {}
 }

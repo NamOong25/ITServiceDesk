@@ -39,9 +39,33 @@ export type Incident = IncidentSummary & {
   assetCode: string | null;
   assetName: string | null;
   activity: Activity[];
+  attachments?: IncidentAttachment[];
 };
 
+export type IncidentAttachment = {
+  id: number;
+  activityId: number | null;
+  name: string;
+  mediaType: 'image/png' | 'image/jpeg' | 'application/pdf';
+  sizeBytes: number;
+};
+
+function withFiles(payload: object, files: File[] = []): string | FormData {
+  const json = JSON.stringify(payload);
+  if (files.length === 0) return json;
+  const form = new FormData();
+  form.append('data', new Blob([json], { type: 'application/json' }));
+  files.forEach((file) => form.append('files', file));
+  return form;
+}
+
+function checkAttachments(response: Response) {
+  if (response.status === 413) throw new Error('Mỗi lần gửi tối đa 3 tệp, dung lượng tối đa 5 MB mỗi tệp.');
+  if (response.status === 415) throw new Error('Kiểm tra lại tệp. Hệ thống hỗ trợ PNG, JPG và PDF.');
+}
+
 async function readResponse<T>(response: Response, fallback: string): Promise<T> {
+  checkAttachments(response);
   if (response.status === 401) throw new Error('Phiên đăng nhập đã hết hạn. Hãy tải lại trang để đăng nhập.');
   if (response.status === 404) throw new Error('Không tìm thấy yêu cầu này.');
   if (response.status === 400) throw new Error('Kiểm tra các trường trong form rồi thử lại.');
@@ -57,13 +81,14 @@ export async function getIncident(id: number, signal: AbortSignal): Promise<Inci
   return readResponse(await fetch('/api/incidents/' + id, { signal }), 'Chưa tải được chi tiết yêu cầu.');
 }
 
-export async function createIncident(draft: Draft, submissionKey: string, knowledgeArticleId: number | null): Promise<Incident> {
-  return readResponse(await postWithCsrf('/api/incidents', JSON.stringify({ ...draft, submissionKey, knowledgeArticleId })),
+export async function createIncident(draft: Draft, submissionKey: string, knowledgeArticleId: number | null,
+  files: File[]): Promise<Incident> {
+  return readResponse(await postWithCsrf('/api/incidents', withFiles({ ...draft, submissionKey, knowledgeArticleId }, files)),
     'Chưa gửi được yêu cầu. Vui lòng thử lại.');
 }
 
-export async function replyToIncident(id: number, body: string, submissionKey: string): Promise<Incident> {
-  const response = await postWithCsrf('/api/incidents/' + id + '/messages', JSON.stringify({ body, submissionKey }));
+export async function replyToIncident(id: number, body: string, submissionKey: string, files: File[]): Promise<Incident> {
+  const response = await postWithCsrf('/api/incidents/' + id + '/messages', withFiles({ body, submissionKey }, files));
   if (response.status === 409) {
     throw new Error('Sự cố đã đổi trạng thái hoặc phản hồi đã được ghi nhận. Hãy tải lại yêu cầu.');
   }
@@ -153,6 +178,7 @@ export type ItDetail = {
   ticket: ItTicket & Pick<Incident,
     'description' | 'knowledgeArticleId' | 'knowledgeArticleTitle' | 'assetId' | 'assetCode' | 'assetName'>;
   activity: Activity[];
+  attachments?: IncidentAttachment[];
   sla: ReplySla;
   resolutionSla: ResolutionSla;
   savedSummary: IncidentSummaryResult | null;
@@ -175,9 +201,10 @@ type ItUpdate =
   | { action: 'priority'; priority: IncidentPriority }
   | { action: 'transfer'; recipient: string; reason: string; submissionKey: string };
 
-export async function sendItUpdate(id: number, { action, ...payload }: ItUpdate): Promise<void> {
-  const response = await postWithCsrf(itPath + '/' + id + '/' + action,
-    action === 'claim' || action === 'resolve' ? undefined : JSON.stringify(payload));
+export async function sendItUpdate(id: number, { action, ...payload }: ItUpdate, files?: File[]): Promise<void> {
+  const body = action === 'claim' || action === 'resolve' ? undefined : withFiles(payload, files);
+  const response = await postWithCsrf(itPath + '/' + id + '/' + action, body);
+  checkAttachments(response);
   if (action === 'transfer' && response.status === 400) {
     throw new Error('Kiểm tra người nhận và lý do bàn giao rồi thử lại.');
   }
