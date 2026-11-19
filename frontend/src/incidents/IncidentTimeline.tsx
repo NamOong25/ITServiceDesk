@@ -4,6 +4,7 @@ import { AttachmentList } from './Attachments';
 
 const labels = {
   ASSIGNED: 'Đã nhận xử lý',
+  RESUMED: 'IT đã tiếp tục xử lý',
   TRANSFERRED: 'Đã bàn giao sự cố',
   PUBLIC_REPLY: 'Phản hồi từ IT',
   WAIT_REQUESTED: 'IT yêu cầu bổ sung thông tin',

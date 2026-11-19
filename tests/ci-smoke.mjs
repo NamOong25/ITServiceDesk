@@ -195,16 +195,47 @@ test('IT Service Desk API', { timeout: 60_000 }, async (suite) => {
     const reply = { body: 'Error code E3.', submissionKey: randomUUID() };
     await otherEmployee.post(customer + '/messages', 404, reply);
     const answered = await employee.post(customer + '/messages', 200, reply);
-    assert.equal(answered.status, 'IN_PROGRESS');
+    assert.equal(answered.status, 'WAITING_IT');
     await employee.post(customer + '/messages', 200, reply);
 
     const resumed = await it.get(request);
     assert.equal(resumed.ticket.assignee, 'it@itsd.example');
+    assert.equal(resumed.ticket.status, 'WAITING_IT');
+    const listed = (await it.get(itIncidentPath)).find(issue => issue.id === created.id);
+    assert.equal(listed.status, 'WAITING_IT');
+    assert.equal((await manager.get('/api/manager/incidents/' + created.id)).ticket.status, 'WAITING_IT');
     assert.equal(resumed.resolutionSla.state, 'ACTIVE');
     assert.ok(resumed.resolutionSla.dueAt);
     assert.equal(resumed.sla.firstReplyAt, paused.sla.firstReplyAt);
+    const resume = { submissionKey: randomUUID() };
+    await employee.post(request + '/resume', 403, resume);
+    await secondIt.post(request + '/resume', 403, resume);
+    await it.post(request + '/resume', 400, {});
+    await it.post(request + '/claim', 204);
+    await it.post(request + '/resolve', 409);
+    await it.post(request + '/messages', 409, {
+      kind: 'PUBLIC_REPLY', body: 'Trying to skip receiving the reply.', submissionKey: randomUUID(),
+    });
+    assert.equal((await it.get(request)).ticket.status, 'WAITING_IT');
+    const additional = { body: 'Another detail about the same error.', submissionKey: randomUUID() };
+    assert.equal((await employee.post(customer + '/messages', 200, additional)).status, 'WAITING_IT');
+
+    await Promise.all([
+      it.post(request + '/resume', 204, resume),
+      it.post(request + '/resume', 204, resume),
+    ]);
+    const accepted = await it.get(request);
+    assert.equal(accepted.ticket.status, 'IN_PROGRESS');
+    assert.equal(accepted.resolutionSla.dueAt, resumed.resolutionSla.dueAt);
+    const resumeEvents = accepted.activity.filter(event => event.kind === 'RESUMED');
+    assert.equal(resumeEvents.length, 1);
+    assert.equal(resumeEvents[0].actor, 'it@itsd.example');
+    assert.ok(Date.parse(resumeEvents[0].createdAt) >= Date.parse(accepted.activity.find(event =>
+      event.kind === 'REQUESTER_REPLY').createdAt));
+    await it.post(request + '/resume', 409, { submissionKey: randomUUID() });
     const nextQuestion = { ...ask, submissionKey: randomUUID() };
     await it.post(request + '/messages', 204, nextQuestion);
+    await it.post(request + '/resume', 204, resume);
     await employee.post(customer + '/messages', 200, reply);
     assert.equal((await it.get(request)).ticket.status, 'WAITING_CUSTOMER');
     await it.post(request + '/transfer', 204, {
@@ -293,6 +324,9 @@ test('IT Service Desk API', { timeout: 60_000 }, async (suite) => {
     await employee.post(incidentPath + '/' + ticket.id + '/messages', 200, reply);
     await itemFor(secondIt, ticket.id, 'REQUESTER_REPLY');
     assert.ok((await it.get(inbox)).items.every(item => item.kind !== 'REQUESTER_REPLY' || item.resourceId !== ticket.id));
+    const accepted = { submissionKey: randomUUID() };
+    await secondIt.post(work + '/resume', 204, accepted);
+    await secondIt.post(work + '/resume', 204, accepted);
     await secondIt.post(work + '/resolve', 204);
     await secondIt.post(work + '/resolve', 204);
     await itemFor(employee, ticket.id, 'RESOLVED');
@@ -449,7 +483,7 @@ test('IT Service Desk API', { timeout: 60_000 }, async (suite) => {
     await it.post(work + '/messages', 204, upload(note, [privateFile]));
 
     const updated = await it.get(work);
-    assert.equal(updated.ticket.status, 'IN_PROGRESS');
+    assert.equal(updated.ticket.status, 'WAITING_IT');
     assert.equal(updated.attachments.length, 3);
     const replyActivity = updated.activity.find(event => event.kind === 'REQUESTER_REPLY');
     const noteActivity = updated.activity.find(event => event.kind === 'INTERNAL_NOTE');
@@ -461,6 +495,13 @@ test('IT Service Desk API', { timeout: 60_000 }, async (suite) => {
     await employee.download(customer + '/attachments/' + hidden.id, 404);
     await manager.download(work + '/attachments/' + hidden.id, 403);
     assert.equal((await employee.get(customer)).attachments.length, 2);
+    const beforeView = updated.resolutionSla;
+    await it.download(work + '/attachments/' + original.id);
+    assert.equal((await it.get(work)).ticket.status, 'WAITING_IT');
+    await it.post(work + '/resume', 204, { submissionKey: randomUUID() });
+    const afterResume = await it.get(work);
+    assert.equal(afterResume.ticket.status, 'IN_PROGRESS');
+    assert.equal(afterResume.resolutionSla.dueAt, beforeView.dueAt);
   });
 
   await suite.test('Manager dashboard separates SLA counters and only exposes team incidents', async () => {

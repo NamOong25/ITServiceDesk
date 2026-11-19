@@ -90,7 +90,12 @@
 .incident-event[data-kind="TRANSFERRED"] > span { background: #e9eeff; color: #344cb8; }
 .it-composer { margin-top: 13px; }
 .it-composer .incident-actions { flex-wrap: wrap; }
-.incident-pill[data-status="WAITING_CUSTOMER"] { white-space: normal; }
+.incident-pill[data-status="WAITING_CUSTOMER"],
+.incident-pill[data-status="WAITING_IT"] { white-space: normal; }
+.incident-pill[data-status="WAITING_IT"] { background: #e9eeff; color: #344cb8; }
+.it-resume-panel { margin-top: 14px; padding: 12px; border: 1px solid #ccd7f5; border-radius: 9px; background: #f2f5ff; }
+.it-resume-panel h3 { margin: 0; color: #253b81; font-size: .9rem; }
+.it-resume-panel p { margin-top: 6px; color: var(--incident-quiet); font-size: .83rem; line-height: 1.5; }
 .incident-pill[data-status="WAITING_CUSTOMER"],
 [data-sla="PAUSED"] .sla-badge { background: #fff0d6; color: #795509; }
 .it-composer-tabs { display: flex; flex-wrap: wrap; gap: 12px; border-bottom: 1px solid var(--incident-border); }

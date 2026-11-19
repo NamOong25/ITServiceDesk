@@ -92,13 +92,13 @@ class IncidentController {
             attachments.verifyRetry(id, previous.get(), files);
         } else {
             boolean waiting = "WAITING_CUSTOMER".equals(incident.status());
-            if (!waiting && !"IN_PROGRESS".equals(incident.status())) {
+            if (!waiting && !"IN_PROGRESS".equals(incident.status()) && !"WAITING_IT".equals(incident.status())) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT);
             }
             long activity = IncidentActivity.addMessage(db, id, actor, REQUESTER_REPLY, body, message.submissionKey());
             attachments.save(id, activity, files);
             if (waiting) {
-                db.sql("update incident set status = 'IN_PROGRESS' where id = :id").param("id", id).update();
+                db.sql("update incident set status = 'WAITING_IT' where id = :id").param("id", id).update();
                 incident = ownIncident(id, actor, false);
                 notifications.incidentActivity(activity);
             }

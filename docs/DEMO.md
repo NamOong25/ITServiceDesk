@@ -60,8 +60,9 @@ Mở **Cách tính hạn** để xem 30 phút của thứ Sáu và 90 phút củ
 
 1. Nhân viên báo một sự cố ảnh hưởng **Một nhóm**. IT nhận xử lý rồi kiểm tra **Hạn giải quyết** trong **Thông tin xử lý**. Mức ưu tiên ban đầu Trung bình có 8 giờ làm việc.
 2. Trong **Trả lời nhân viên**, nhập câu hỏi và bấm **Gửi và chờ phản hồi**. Câu hỏi xuất hiện ở cả hai cổng. Nếu đây là phản hồi công khai đầu tiên, hệ thống ghi nhận luôn mốc phản hồi đầu tiên. Mục **Hạn giải quyết** hiển thị **Đang tạm dừng**.
-3. Nhân viên vào chi tiết và bấm **Gửi phản hồi**. Sự cố tự trở lại **Đang xử lý** với cùng người phụ trách. IT mở lại hoặc chuyển về tab chi tiết để xem hạn mới.
-4. IT đánh dấu **Đã giải quyết**. Nếu nhân viên mở lại sự cố, đồng hồ giải quyết tiếp tục từ thời lượng đã dùng.
+3. Nhân viên vào chi tiết và bấm **Gửi phản hồi**. Sự cố chuyển sang **Chờ IT tiếp tục xử lý** với cùng người phụ trách. Đồng hồ giải quyết chạy từ thời điểm nhân viên trả lời.
+4. IT xem thông tin bổ sung và bấm **Tiếp tục xử lý** trong **Thông tin xử lý**. Sự cố chuyển thành **Đang xử lý**, lịch sử ghi người và thời điểm tiếp nhận lại. Mở ảnh hoặc tải tệp vẫn giữ sự cố ở bước chờ tiếp nhận.
+5. IT đánh dấu **Đã giải quyết**. Nếu nhân viên mở lại sự cố, đồng hồ giải quyết tiếp tục từ thời lượng đã dùng.
 
 Thời lượng tính từ lúc gửi sự cố, với các mức Cao 4 giờ, Trung bình 8 giờ và Thấp 16 giờ. Hệ thống dùng mức ưu tiên ban đầu theo phạm vi ảnh hưởng, lịch làm việc 08:00–17:00 từ thứ Hai đến thứ Sáu và giờ Việt Nam.
 

@@ -114,6 +114,7 @@ export const statusLabels = {
   NEW: 'Mới',
   IN_PROGRESS: 'Đang xử lý',
   WAITING_CUSTOMER: 'Chờ nhân viên phản hồi',
+  WAITING_IT: 'Chờ IT tiếp tục xử lý',
   RESOLVED: 'Đã giải quyết',
 } as const;
 
@@ -128,7 +129,7 @@ export function ticketCode(id: number) {
 export type IncidentStatus = keyof typeof statusLabels;
 export type Activity = {
   id: number;
-  kind: 'ASSIGNED' | 'PUBLIC_REPLY' | 'WAIT_REQUESTED' | 'REQUESTER_REPLY' | 'INTERNAL_NOTE' | 'RESOLVED' | 'CONFIRMED' | 'REOPENED' | 'TRANSFERRED';
+  kind: 'ASSIGNED' | 'PUBLIC_REPLY' | 'WAIT_REQUESTED' | 'REQUESTER_REPLY' | 'INTERNAL_NOTE' | 'RESOLVED' | 'CONFIRMED' | 'REOPENED' | 'TRANSFERRED' | 'RESUMED';
   actor: string;
   body: string | null;
   createdAt: string;
@@ -197,6 +198,7 @@ export async function getItIncident(id: number, signal: AbortSignal): Promise<It
 
 type ItUpdate =
   | { action: 'claim' | 'resolve' }
+  | { action: 'resume'; submissionKey: string }
   | { action: 'messages'; kind: 'PUBLIC_REPLY' | 'INTERNAL_NOTE' | 'WAIT_REQUESTED'; body: string; submissionKey: string }
   | { action: 'priority'; priority: IncidentPriority }
   | { action: 'transfer'; recipient: string; reason: string; submissionKey: string };

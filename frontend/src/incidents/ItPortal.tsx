@@ -11,7 +11,7 @@ import './employee.css';
 import './it.css';
 
 type MessageKind = 'PUBLIC_REPLY' | 'INTERNAL_NOTE';
-type Action = 'claim' | 'resolve' | 'messages' | 'priority' | 'transfer';
+type Action = 'claim' | 'resolve' | 'messages' | 'priority' | 'transfer' | 'resume';
 
 function activeIncident() {
   const match = /^\/it\/incidents\/([1-9][0-9]*)$/.exec(window.location.pathname);
@@ -131,13 +131,15 @@ function ItIncident({ detail, email, refresh, onTransferred }: {
   const [recipient, setRecipient] = useState('');
   const [transferReason, setTransferReason] = useState('');
   const transferKey = useRef<string | null>(null);
+  const resumeKey = useRef<string | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [pending, setPending] = useState<Action | null>(null);
   const submission = useRef<{ kind: MessageKind | 'WAIT_REQUESTED'; key: string } | null>(null);
   const active = useRef(false);
   const waiting = ticket.status === 'WAITING_CUSTOMER';
-  const mine = (ticket.status === 'IN_PROGRESS' || waiting) && ticket.assignee === email;
+  const awaitingResume = ticket.status === 'WAITING_IT';
+  const mine = (ticket.status === 'IN_PROGRESS' || waiting || awaitingResume) && ticket.assignee === email;
   const priority = priorityDraft ?? ticket.priority;
   const isNote = kind === 'INTERNAL_NOTE';
   const latestReply = activity.reduce<ItDetail['activity'][number] | undefined>((latest, event) => {
@@ -149,6 +151,10 @@ function ItIncident({ detail, email, refresh, onTransferred }: {
     active.current = true;
     return () => { active.current = false; };
   }, []);
+
+  useEffect(() => {
+    resumeKey.current = null;
+  }, [awaitingResume]);
 
   function choose(next: MessageKind) {
     if (next === kind) return;
@@ -186,6 +192,9 @@ function ItIncident({ detail, email, refresh, onTransferred }: {
         case 'priority':
           await sendItUpdate(ticket.id, { action, priority });
           break;
+        case 'resume':
+          await sendItUpdate(ticket.id, { action, submissionKey: resumeKey.current ??= crypto.randomUUID() });
+          break;
         case 'transfer':
           await sendItUpdate(ticket.id, { action, recipient, reason, submissionKey: transferKey.current ??= crypto.randomUUID() });
           break;
@@ -208,6 +217,7 @@ function ItIncident({ detail, email, refresh, onTransferred }: {
       setMessage({
         transfer: 'Đã bàn giao sự cố cho ' + recipient + '.',
         claim: 'Bạn đã nhận xử lý sự cố.',
+        resume: 'Bạn đã tiếp tục xử lý sự cố.',
         resolve: 'Đã đánh dấu sự cố là đã giải quyết.',
         messages: messageKind === 'WAIT_REQUESTED' ? 'Đã gửi câu hỏi và chuyển sang chờ nhân viên.'
           : isNote ? 'Đã lưu ghi chú nội bộ.' : 'Đã gửi phản hồi cho nhân viên.',
@@ -257,7 +267,7 @@ function ItIncident({ detail, email, refresh, onTransferred }: {
         <IncidentSummary incidentId={ticket.id} saved={savedSummary} latestReply={latestReply} />
         <IncidentTimeline createdAt={ticket.createdAt} activity={activity}
           attachments={{ incidentId: ticket.id, files: detail.attachments, staff: true }} />
-        {mine && <form className="incident-card it-composer" onSubmit={send}>
+        {mine && !awaitingResume && <form className="incident-card it-composer" onSubmit={send}>
           <div className="it-composer-tabs" role="group" aria-label="Loại nội dung">
             <button type="button" aria-pressed={!isNote} disabled={!!pending}
               onClick={() => choose('PUBLIC_REPLY')}>Trả lời nhân viên</button>
@@ -304,12 +314,18 @@ function ItIncident({ detail, email, refresh, onTransferred }: {
             {pending === 'priority' ? 'Đang lưu…' : 'Lưu mức ưu tiên'}
           </button>
         </form>}
+        {awaitingResume && <section className="it-resume-panel" aria-label="Tiếp nhận phản hồi">
+          <h3>Nhân viên đã bổ sung thông tin</h3>
+          <p>SLA giải quyết đang tính từ lúc nhân viên trả lời.</p>
+          {mine && <button className="incident-primary it-side-action" type="button" disabled={!!pending}
+            onClick={() => void act('resume')}>{pending === 'resume' ? 'Đang tiếp nhận…' : 'Tiếp tục xử lý'}</button>}
+        </section>}
         <ReplyDeadline sla={detail.sla} detailed />
         {detail.resolutionSla && <ResolutionDeadline sla={detail.resolutionSla} />}
         {ticket.status === 'RESOLVED' && <DraftArticleButton incidentId={ticket.id} />}
         {ticket.status === 'NEW' && <button className="incident-primary it-side-action" type="button"
           disabled={!!pending} onClick={() => void act('claim')}>{pending === 'claim' ? 'Đang nhận…' : 'Nhận xử lý'}</button>}
-        {mine && <button className="secondary it-side-action" type="button" disabled={!!pending}
+        {mine && !awaitingResume && <button className="secondary it-side-action" type="button" disabled={!!pending}
           onClick={() => void act('resolve')}>{pending === 'resolve' ? 'Đang cập nhật…' : 'Đánh dấu đã giải quyết'}</button>}
         {mine && transferOptions?.length > 0 && <details className="it-transfer">
           <summary>Bàn giao sự cố</summary>

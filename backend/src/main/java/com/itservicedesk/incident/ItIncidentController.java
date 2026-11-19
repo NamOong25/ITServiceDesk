@@ -120,6 +120,20 @@ class ItIncidentController {
         recordTransition(id, actor, "ASSIGNED");
     }
 
+    @PostMapping("/{id}/resume")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Transactional
+    public void resume(@PathVariable long id, Authentication account, @RequestBody Resume request) {
+        if (request.submissionKey() == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        String actor = account.getName();
+        Handling state = lockIncident(id);
+        if (IncidentActivity.isReplay(db, id, actor, "RESUMED", null, null, request.submissionKey())) return;
+        requireHandler(state, actor);
+        requireState("WAITING_IT".equals(state.status()));
+        db.sql("update incident set status = 'IN_PROGRESS' where id = :id").param("id", id).update();
+        IncidentActivity.addMessage(db, id, actor, "RESUMED", null, request.submissionKey());
+    }
+
     @PostMapping("/{id}/transfer")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Transactional
@@ -170,6 +184,7 @@ class ItIncidentController {
         Handling state = lockIncident(id);
         if ("RESOLVED".equals(state.status()) && actor.equals(state.assignee())) return;
         requireHandler(state, actor);
+        requireState(!"WAITING_IT".equals(state.status()));
         db.sql("update incident set status = 'RESOLVED' where id = :id").param("id", id).update();
         notifications.incidentActivity(recordTransition(id, actor, "RESOLVED"));
     }
@@ -215,6 +230,7 @@ class ItIncidentController {
             return;
         }
         requireHandler(state, actor);
+        requireState(!"WAITING_IT".equals(state.status()) || message.kind() == MessageKind.INTERNAL_NOTE);
         if (message.kind() == MessageKind.WAIT_REQUESTED) {
             requireState("IN_PROGRESS".equals(state.status()));
             db.sql("update incident set status = 'WAITING_CUSTOMER' where id = :id").param("id", id).update();
@@ -254,7 +270,7 @@ class ItIncidentController {
     }
 
     private static boolean isOpenAssignment(String status) {
-        return "IN_PROGRESS".equals(status) || "WAITING_CUSTOMER".equals(status);
+        return "IN_PROGRESS".equals(status) || "WAITING_CUSTOMER".equals(status) || "WAITING_IT".equals(status);
     }
 
     private static void requireState(boolean valid) {
@@ -264,6 +280,7 @@ class ItIncidentController {
     enum Priority { HIGH, MEDIUM, LOW }
     enum MessageKind { PUBLIC_REPLY, WAIT_REQUESTED, INTERNAL_NOTE }
     record PriorityUpdate(Priority priority) {}
+    record Resume(UUID submissionKey) {}
     record Transfer(String recipient, String reason, UUID submissionKey) {}
     private record Recipient(long id, String email) {}
     record Message(MessageKind kind, String body, UUID submissionKey) {}

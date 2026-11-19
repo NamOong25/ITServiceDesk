@@ -270,7 +270,10 @@ function IncidentDetail({ incident, sent, onReply }: {
             {incident.status === 'WAITING_CUSTOMER' && <p className="incident-success">
               Đội IT đang chờ bạn bổ sung thông tin để tiếp tục xử lý.
             </p>}
-            {(incident.status === 'IN_PROGRESS' || incident.status === 'WAITING_CUSTOMER') &&
+            {incident.status === 'WAITING_IT' && <p className="incident-success">
+              Bạn đã bổ sung thông tin. Sự cố đang chờ IT tiếp tục xử lý.
+            </p>}
+            {(incident.status === 'IN_PROGRESS' || incident.status === 'WAITING_CUSTOMER' || incident.status === 'WAITING_IT') &&
               <RequesterReplyForm id={incident.id} onReply={onReply} />}
           </IncidentTimeline>
         </div>
@@ -360,6 +363,7 @@ export function EmployeePortal() {
   const newCount = list?.filter((item) => item.status === 'NEW').length ?? 0;
   const progressCount = list?.filter((item) => item.status === 'IN_PROGRESS').length ?? 0;
   const waitingCount = list?.filter((item) => item.status === 'WAITING_CUSTOMER').length ?? 0;
+  const waitingItCount = list?.filter((item) => item.status === 'WAITING_IT').length ?? 0;
 
   return (
     <section className="employee-main">
@@ -378,9 +382,10 @@ export function EmployeePortal() {
           </a>
           {list && <div className="incident-card">
             <span className="quick-icon open-icon" aria-hidden="true">✓</span>
-            <div><h2>{newCount + progressCount + waitingCount} sự cố đang mở</h2>
+            <div><h2>{newCount + progressCount + waitingCount + waitingItCount} sự cố đang mở</h2>
               <small>{newCount} mới gửi · {progressCount} đang được đội IT xử lý
-                {waitingCount > 0 && ` · ${waitingCount} đang chờ bạn trả lời`}</small></div>
+                {waitingCount > 0 && ` · ${waitingCount} đang chờ bạn trả lời`}
+                {waitingItCount > 0 && ` · ${waitingItCount} chờ IT tiếp tục`}</small></div>
           </div>}
         </div>
         {list && <section className="incident-card incident-list" aria-label="Danh sách yêu cầu">
